@@ -1,0 +1,67 @@
+{
+  "smoke_runs": [
+    {
+      "solver": "yices2",
+      "run": "/tmp/ufnia-runner-smoke-rwkhfp05/results/yices2/runs/20261010T202206-k68xethl",
+      "counts": {
+        "sat": 2,
+        "unsat": 4,
+        "unknown": 0,
+        "timeout": 0,
+        "error": 0,
+        "interrupted": 0
+      }
+    },
+    {
+      "solver": "cvc5",
+      "run": "/tmp/ufnia-runner-smoke-rwkhfp05/results/cvc5/runs/20261010T202206-uigk0hgt",
+      "counts": {
+        "sat": 2,
+        "unsat": 4,
+        "unknown": 0,
+        "timeout": 0,
+        "error": 0,
+        "interrupted": 0
+      }
+    },
+    {
+      "solver": "z3",
+      "run": "/tmp/ufnia-runner-smoke-rwkhfp05/results/z3/runs/20261010T202206-fnpw2t8i",
+      "counts": {
+        "sat": 2,
+        "unsat": 4,
+        "unknown": 0,
+        "timeout": 0,
+        "error": 0,
+        "interrupted": 0
+      }
+    },
+    {
+      "solver": "smtinterpol",
+      "run": "/tmp/ufnia-runner-smoke-rwkhfp05/results/smtinterpol/runs/20261010T202207-2we7t7rc",
+      "counts": {
+        "sat": 1,
+        "unsat": 1,
+        "unknown": 4,
+        "timeout": 0,
+        "error": 0,
+        "interrupted": 0
+      }
+    }
+  ],
+  "default_jobs": 180,
+  "real_benchmark_discovered": 806,
+  "real_benchmark_selected": 2,
+  "real_benchmark_counts": {
+    "sat": 2,
+    "unsat": 0,
+    "unknown": 0,
+    "timeout": 0,
+    "error": 0,
+    "interrupted": 0
+  },
+  "validation_dir": "/tmp/ufnia-runner-smoke-rwkhfp05",
+  "unittest_count": 9,
+  "final_validation_dir": "/tmp/ufnia-final-runner-check-z2k0ps88",
+  "protocol_error_regression": "verified with real SMTInterpol exit0 output"
+}

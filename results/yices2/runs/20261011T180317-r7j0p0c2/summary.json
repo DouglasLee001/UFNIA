@@ -1,0 +1,19 @@
+{
+  "solver": "yices2",
+  "status": "finished",
+  "selected": 806,
+  "recorded": 806,
+  "not_run": 0,
+  "counts": {
+    "sat": 490,
+    "unsat": 199,
+    "unknown": 0,
+    "timeout": 114,
+    "error": 3,
+    "interrupted": 0
+  },
+  "infrastructure_errors": 0,
+  "wall_time_seconds": 683.018816,
+  "finished_at": "2026-10-11T18:14:40.428254+08:00",
+  "exit_code": 0
+}

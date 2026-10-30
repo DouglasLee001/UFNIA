@@ -1,0 +1,19 @@
+{
+  "solver": "z3",
+  "status": "finished",
+  "selected": 806,
+  "recorded": 806,
+  "not_run": 0,
+  "counts": {
+    "sat": 398,
+    "unsat": 225,
+    "unknown": 0,
+    "timeout": 183,
+    "error": 0,
+    "interrupted": 0
+  },
+  "infrastructure_errors": 0,
+  "wall_time_seconds": 1203.625892,
+  "finished_at": "2026-10-11T18:24:20.216395+08:00",
+  "exit_code": 0
+}

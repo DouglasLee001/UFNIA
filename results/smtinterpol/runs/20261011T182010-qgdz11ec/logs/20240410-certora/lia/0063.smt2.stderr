@@ -1,0 +1,18 @@
+Picked up JAVA_TOOL_OPTIONS: -XX:ActiveProcessorCount=1 -XX:+UseSerialGC -Xms16m -Xmx256m
+Exception in thread "main" java.lang.OutOfMemoryError: Java heap space
+	at de.uni_freiburg.informatik.ultimate.smtinterpol.util.Polynomial.<init>(Polynomial.java:77)
+	at de.uni_freiburg.informatik.ultimate.smtinterpol.util.Polynomial.add(Polynomial.java:253)
+	at de.uni_freiburg.informatik.ultimate.smtinterpol.convert.TermCompiler.convertApplicationTerm(TermCompiler.java:286)
+	at de.uni_freiburg.informatik.ultimate.logic.TermTransformer$BuildApplicationTerm.walk(TermTransformer.java:389)
+	at de.uni_freiburg.informatik.ultimate.logic.NonRecursive.run(NonRecursive.java:115)
+	at de.uni_freiburg.informatik.ultimate.logic.NonRecursive.run(NonRecursive.java:106)
+	at de.uni_freiburg.informatik.ultimate.logic.TermTransformer.transform(TermTransformer.java:319)
+	at de.uni_freiburg.informatik.ultimate.smtinterpol.convert.Clausifier.addFormula(Clausifier.java:1758)
+	at de.uni_freiburg.informatik.ultimate.smtinterpol.smtlib2.SMTInterpol.assertTerm(SMTInterpol.java:691)
+	at de.uni_freiburg.informatik.ultimate.smtinterpol.smtlib2.Parser$Action$.CUP$do_action(Parser.java:3277)
+	at de.uni_freiburg.informatik.ultimate.smtinterpol.smtlib2.Parser.do_action(Parser.java:1565)
+	at com.github.jhoenicke.javacup.runtime.LRParser.parse(Unknown Source)
+	at de.uni_freiburg.informatik.ultimate.smtinterpol.smtlib2.ParseEnvironment.parseStream(ParseEnvironment.java:120)
+	at de.uni_freiburg.informatik.ultimate.smtinterpol.smtlib2.ParseEnvironment.parseScript(ParseEnvironment.java:99)
+	at de.uni_freiburg.informatik.ultimate.smtinterpol.smtlib2.SMTLIB2Parser.run(SMTLIB2Parser.java:35)
+	at de.uni_freiburg.informatik.ultimate.smtinterpol.Main.main(Main.java:182)

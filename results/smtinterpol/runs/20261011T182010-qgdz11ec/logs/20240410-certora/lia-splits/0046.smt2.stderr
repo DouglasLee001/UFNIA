@@ -1,0 +1,18 @@
+Picked up JAVA_TOOL_OPTIONS: -XX:ActiveProcessorCount=1 -XX:+UseSerialGC -Xms16m -Xmx256m
+Exception in thread "main" java.lang.OutOfMemoryError: Java heap space
+	at de.uni_freiburg.informatik.ultimate.smtinterpol.theory.cclosure.CCTermPairHash$Info.<init>(CCTermPairHash.java:56)
+	at de.uni_freiburg.informatik.ultimate.smtinterpol.theory.cclosure.CCTerm.mergeInternal(CCTerm.java:478)
+	at de.uni_freiburg.informatik.ultimate.smtinterpol.theory.cclosure.CCTerm.merge(CCTerm.java:381)
+	at de.uni_freiburg.informatik.ultimate.smtinterpol.theory.cclosure.CClosure.setLiteral(CClosure.java:890)
+	at de.uni_freiburg.informatik.ultimate.smtinterpol.dpll.DPLLEngine.setLiteral(DPLLEngine.java:522)
+	at de.uni_freiburg.informatik.ultimate.smtinterpol.dpll.DPLLEngine.propagateClauses(DPLLEngine.java:458)
+	at de.uni_freiburg.informatik.ultimate.smtinterpol.dpll.DPLLEngine.propagateInternal(DPLLEngine.java:251)
+	at de.uni_freiburg.informatik.ultimate.smtinterpol.dpll.DPLLEngine.quickCheck(DPLLEngine.java:1756)
+	at de.uni_freiburg.informatik.ultimate.smtinterpol.smtlib2.SMTInterpol.assertTerm(SMTInterpol.java:697)
+	at de.uni_freiburg.informatik.ultimate.smtinterpol.smtlib2.Parser$Action$.CUP$do_action(Parser.java:3277)
+	at de.uni_freiburg.informatik.ultimate.smtinterpol.smtlib2.Parser.do_action(Parser.java:1565)
+	at com.github.jhoenicke.javacup.runtime.LRParser.parse(Unknown Source)
+	at de.uni_freiburg.informatik.ultimate.smtinterpol.smtlib2.ParseEnvironment.parseStream(ParseEnvironment.java:120)
+	at de.uni_freiburg.informatik.ultimate.smtinterpol.smtlib2.ParseEnvironment.parseScript(ParseEnvironment.java:99)
+	at de.uni_freiburg.informatik.ultimate.smtinterpol.smtlib2.SMTLIB2Parser.run(SMTLIB2Parser.java:35)
+	at de.uni_freiburg.informatik.ultimate.smtinterpol.Main.main(Main.java:182)

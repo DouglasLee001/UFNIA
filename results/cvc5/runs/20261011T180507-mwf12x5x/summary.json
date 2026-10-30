@@ -1,0 +1,19 @@
+{
+  "solver": "cvc5",
+  "status": "finished",
+  "selected": 806,
+  "recorded": 806,
+  "not_run": 0,
+  "counts": {
+    "sat": 380,
+    "unsat": 217,
+    "unknown": 0,
+    "timeout": 157,
+    "error": 52,
+    "interrupted": 0
+  },
+  "infrastructure_errors": 0,
+  "wall_time_seconds": 1047.023418,
+  "finished_at": "2026-10-11T18:22:34.878075+08:00",
+  "exit_code": 0
+}

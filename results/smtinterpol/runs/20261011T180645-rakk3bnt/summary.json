@@ -1,0 +1,19 @@
+{
+  "solver": "smtinterpol",
+  "status": "finished",
+  "selected": 806,
+  "recorded": 806,
+  "not_run": 0,
+  "counts": {
+    "sat": 0,
+    "unsat": 0,
+    "unknown": 0,
+    "timeout": 0,
+    "error": 806,
+    "interrupted": 0
+  },
+  "infrastructure_errors": 0,
+  "wall_time_seconds": 6.273005,
+  "finished_at": "2026-10-11T18:06:51.392108+08:00",
+  "exit_code": 0
+}

@@ -1,0 +1,34 @@
+{
+  "solver": "smtinterpol",
+  "solver_command": [
+    "/home/lbh/smt/ufnia/competitors/smtinterpol/bin/smtinterpol",
+    "-q"
+  ],
+  "benchmark_dir": "/data/shared/lbh/QF_UFNIA/non-incremental/QF_UFNIA",
+  "results_dir": "/home/lbh/smt/ufnia/results/smtinterpol/runs/20261011T180645-rakk3bnt",
+  "jobs": 180,
+  "workers": 180,
+  "timeout_seconds": 600.0,
+  "limit": 0,
+  "discovered": 806,
+  "selected": 806,
+  "started_at": "2026-10-11T18:06:45.079772+08:00",
+  "status": "finished",
+  "smtinterpol_heap_mb": 256,
+  "solver_release": {
+    "version": "2.5-1453-gedae1f37",
+    "selection": "current official downloadable distribution; GitHub has no Releases",
+    "official_download_page": "https://ultimate.informatik.uni-freiburg.de/smtinterpol/download.html",
+    "download_page_last_modified": "2026-02-14T19:27:57+01:00",
+    "source_commit": "edae1f37e5e65fe0b74a0b5cbad052d7f941c1cb",
+    "source_commit_date": "2026-02-14T18:18:53Z",
+    "source_url": "https://ultimate.informatik.uni-freiburg.de/smtinterpol/smtinterpol-2.5-1453-gedae1f37-sources.jar",
+    "source_sha256_published": "ebc39743398f01a45eed9199df348d54f5a035d96292088c8984be89bb4981cb",
+    "repository": "https://github.com/ultimate-pa/smtinterpol",
+    "checked_on": "2026-10-10",
+    "source_sha256_verified": "ebc39743398f01a45eed9199df348d54f5a035d96292088c8984be89bb4981cb",
+    "source_archive_sha256": "61e38f6f7be676e6a0fa32833e5089542eb4c16a0359608c768a7a6298aa1936"
+  },
+  "finished_at": "2026-10-11T18:06:51.392108+08:00",
+  "exit_code": 0
+}
