@@ -1,1 +1,3 @@
 competitors/
+build/
+__pycache__/
