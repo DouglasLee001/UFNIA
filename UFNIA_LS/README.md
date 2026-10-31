@@ -15,7 +15,31 @@ make -C UFNIA_LS
 
 `./UFNIA_LS/run.sh` 是同一入口，可从任意工作目录调用。`--parse-only` 也会完成 UF/算术转换，并让实际编译的 GMP 核心解析中间文件；输出 JSON，不进行局部搜索。默认求解模式为每个 `check-sat` 输出 `sat` 或 `unknown`。局部搜索没有找到模型时返回 `unknown`，不把搜索失败当成 UNSAT 证明。
 
-`--seconds` 是每个查询的 SLS/同余精炼预算；初次前端的 Z3 tactic 时限由 `--preprocess-timeout` 控制，原生遍历、文件序列化和核心读入另计。最大实例的完整转换实测需要数分钟。`--query N` 可选择增量脚本中的第 N 个查询。用户指定的验收目录为 `/data/shared/lbh/QF_UFNIA/non-incremental/QF_UFNIA`。
+新增可选的完整搜索内核迁移版：
+
+```bash
+make -C UFNIA_LS mature
+./run.sh INPUT.smt2 --backend mature --seconds 600 --seed 0 \
+  --model-output result/mature-model.smt2 --json-report result/mature-report.json
+```
+
+`mature` 使用参考内核的 term/literal/clause 增量评分、临界候选缓存、tabu、权重更新和 Boolean/整数阶段搜索，数值改为 GMP。独立 native reader 保留完整 CNF，在输出候选模型前精确复验；Python 前端再检查 UF 同余并验证源断言。参考内核的辅助子进程和内部消元关闭，模型保留全部中间变量。未启用观察时报告为 `mature_intrinsic` / `mature-mpz-v1`，使用外部提前/惰性同余。默认后端仍为 `core`。
+
+新观察模式将 UF 直接纳入完整搜索循环：
+
+```bash
+./run.sh INPUT.smt2 --backend mature --uf-observers \
+  --interaction joint --scoring paws --seconds 600 --seed 0 \
+  --model-output result/uf-model.smt2 --json-report result/uf-report.json
+```
+
+该模式报告为 `mature_uf_observed` / `mature-mpz-v2`。前端将预处理后的复合实参与结果物化为带精确定义的 Int/Bool 变量，和带版本的 UF 应用表一起交给独立核心。核心按函数和具体实参维护结果桶，对每次试探增量评分，并在返回 SAT 前同时检查原 CNF 和 UF 同余；前端仍验证原查询。
+
+`--interaction none` 关闭 UF 反馈及修复，遇到算术全真但 UF 冲突时返回 `unknown`；`soft` 添加单变量 UF 反馈与实参分离；`joint` 还提供结果组联合修复及有界线性补偿。`--scoring count` 使用固定计数，`paws` 启用子句和 UF 的权重更新。其他默认后端专有策略选项仍会明确拒绝。仅构造和回归测试通过不代表此配置已在真实集合达到400，实验状态见进度记录。
+
+UF-only 搜索同样执行超时和停滞重启检查。PAWS 在 UF 平台重加权后重新评选候选，tabu 使用整数与 Boolean 各自的时钟，并允许联合 SAT 或新的原始最优状态通过 aspiration。诊断中的 `current_arithmetic_unsat/current_uf_conflicts` 属于同一当前状态，`best_total_*` 属于同一个历史最优状态；不能将单独的历史算术最小值与末态 UF 值拼接成一个解。
+
+`--seconds` 是每个查询的 SLS/同余精炼预算；初次前端的 Z3 tactic 时限由 `--preprocess-timeout` 控制，原生遍历、文件序列化和核心读入另计。最大实例的完整转换实测需要数分钟。`--query N` 可选择增量脚本中的第 N 个查询。当前搜索性能目标集合为 `/data/shared/lbh/QF_UFNIA/sat/QF_UFNIA`，共572例；早先的完整读入检查使用下面的806例原集合。
 
 ## UF 和大整数
 
@@ -47,6 +71,10 @@ make -C UFNIA_LS test
 
 完整源文件解析审计在 `result/ufnia_upgrade/session_parse/`；预处理、UF 表检查和实际 GMP 核心逐例读入验收在 `result/ufnia_upgrade/full_corpus/`。这些读入检查不代表已经对全目录完成 600 秒求解实验。
 
-本次最终验收：**806/806 通过，0 失败**，所有源文件 SHA-256 与冻结清单一致。包含 alive 179、ic 292、两组 CLEARSY 19/27、两组 Certora 76/206，以及 TwoSquares 7。完整逐例结果为 `validation.csv`，汇总为 `summary.json`；验收工具和核心均记录 SHA-256，全部例子使用同一冻结版本。555 例使用提前同余，248 例使用惰性同余，3 例无需非零元 UF 抽象。
+此前默认后端的读入验收：**806/806 通过，0 失败**，所有源文件 SHA-256 与冻结清单一致。包含 alive 179、ic 292、两组 CLEARSY 19/27、两组 Certora 76/206，以及 TwoSquares 7。完整逐例结果为 `validation.csv`，汇总为 `summary.json`；验收工具和核心均记录 SHA-256，全部例子使用同一冻结版本。555 例使用提前同余，248 例使用惰性同余，3 例无需非零元 UF 抽象。这份历史记录不代表新后端已经完成相同覆盖检查。
+
+至少400个SAT的搜索性能目标已通过正式验收：仅在node3，实际并发峰值180，每例端到端600秒，全572例中413个原公式模型验证SAT、159个超时。配置为`--backend mature --uf-observers --interaction joint --scoring paws --seed 0`，同一冻结版本的独立审计无issues，输入和工具SHA稳定。
+
+复现命令、验证方法和按family结果见[实验说明](../docs/UFNIA_LS实验说明.md)。本地交付为[summary.csv](../result/ufnia_search/final_v12/summary.csv)、[detailed.csv](../result/ufnia_search/final_v12/detailed.csv)和[完整目标验收](../result/ufnia_search/final_v12/acceptance.json)。各冻结版本及负结果仍保存在`result/ufnia_search/PROGRESS.md`；不累计不同版本的SAT。
 
 保留旧转换器接口：`python3 scripts/convert_ufnia.py INPUT -o OUTPUT --target nia_ls` 生成参考 NIA_LS 的有限精度原子格式；`--target ufnia` 生成新核心的任意精度中间文件及 UF 表。实际 SMT(UFNIA) 求解请使用本目录的统一入口。

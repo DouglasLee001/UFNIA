@@ -29,6 +29,9 @@ class ConversionError(Exception):
     """Unsupported input or a conversion resource limit."""
 
 
+_UF_OBSERVER_PREFIX = '__ufnia_observe_'
+
+
 @dataclass
 class ConversionResult:
     native: str
@@ -102,7 +105,11 @@ class ConversionResult:
             raise ConversionError('no UF abstraction to refine')
         return convert_assertions(self.uf_state['base'] + tuple(accumulated_lemmas),
                                   self.uf_state['timeout_ms'] if timeout_ms is None else max(1, int(timeout_ms)), self.uf_state['ackermann_limit'],
-                                  arbitrary_precision=True, _uf_state=self.uf_state)
+                                  arbitrary_precision=True, _uf_state=self.uf_state,
+                                  uf_observers=self.uf_state['mode'] == 'observed',
+                                  cnf=self.uf_state.get('cnf', True),
+                                  post_lower_eqs=self.uf_state.get('post_lower_eqs', False),
+                                  backend=self.uf_state.get('backend', 'core'))
 
 
 _TOKENS = re.compile(r';[^\r\n]*|"(?:[^"]|"")*"|\|[^|]*\||[()]|[^\s();]+')
@@ -213,6 +220,9 @@ class _NativeWriter:
         self.clauses = []
         self.definitions = []
         self.product_count = 0
+        self.observations = None
+        self.boolean_values = {}
+        self.observation_leaves = {}
 
     def symbol(self, expr) -> str:
         key = expr.get_id()
@@ -226,6 +236,11 @@ class _NativeWriter:
     def fresh_integer(self, purpose: str) -> str:
         name = f'i_{len(self.symbol_map)}'
         self.symbol_map[name] = {'source': None, 'sort': 'Int', 'purpose': purpose}
+        return name
+
+    def fresh_boolean(self, purpose: str) -> str:
+        name = f'b_{len(self.symbol_map)}'
+        self.symbol_map[name] = {'source': None, 'sort': 'Bool', 'purpose': purpose}
         return name
 
     @staticmethod
@@ -370,12 +385,135 @@ class _NativeWriter:
                 self.clauses = [[self.atom('<=', {(name,): 1})], [self.atom('<=', {(name,): -1, (): 1})]]
                 return
             self.clauses.append(refs)
-        for poly in self.definitions:
+        self._encode_definitions(self.definitions)
+
+    def _encode_definitions(self, definitions):
+        for poly in definitions:
             atom = self.atom('=', poly)
             if atom is False:
                 raise ConversionError('inconsistent internal product definition')
             if atom is not True:
                 self.clauses.append([atom])
+
+    @staticmethod
+    def _negate(reference):
+        return not reference if type(reference) is bool else -reference
+
+    def _clause(self, references):
+        refs = []
+        for reference in references:
+            if reference is True:
+                return
+            if reference is not False:
+                if -reference in refs:
+                    return
+                if reference not in refs:
+                    refs.append(reference)
+        if not refs:
+            raise ConversionError('inconsistent internal Boolean observation definition')
+        self.clauses.append(refs)
+
+    def _boolean_gate(self, output, kind, children):
+        neg = self._negate
+        if kind == z3.Z3_OP_NOT:
+            self._clause((output, children[0]))
+            self._clause((neg(output), neg(children[0])))
+        elif kind in (z3.Z3_OP_AND, z3.Z3_OP_OR, z3.Z3_OP_IMPLIES):
+            if kind == z3.Z3_OP_IMPLIES:
+                children = [neg(children[0]), children[1]]
+                kind = z3.Z3_OP_OR
+            if kind == z3.Z3_OP_AND:
+                for child in children:
+                    self._clause((neg(output), child))
+                self._clause([output] + [neg(child) for child in children])
+            else:
+                for child in children:
+                    self._clause((output, neg(child)))
+                self._clause([neg(output)] + list(children))
+        elif kind in (z3.Z3_OP_EQ, z3.Z3_OP_IFF, z3.Z3_OP_XOR, z3.Z3_OP_DISTINCT):
+            if kind == z3.Z3_OP_DISTINCT and len(children) != 2:
+                self._clause((output if len(children) < 2 else neg(output),))
+                return
+            if kind == z3.Z3_OP_XOR and len(children) > 2:
+                current = children[0]
+                for index, child in enumerate(children[1:], 1):
+                    target = output if index == len(children) - 1 else self.store_atom(
+                        ('bool', self.fresh_boolean('UF observation XOR gate')))
+                    self._boolean_gate(target, z3.Z3_OP_XOR, (current, child))
+                    current = target
+                return
+            if len(children) != 2:
+                raise ConversionError('unsupported residual Boolean observation arity')
+            if kind in (z3.Z3_OP_XOR, z3.Z3_OP_DISTINCT):
+                output = neg(output)
+            a, b = children
+            self._clause((neg(output), neg(a), b))
+            self._clause((neg(output), a, neg(b)))
+            self._clause((output, a, b))
+            self._clause((output, neg(a), neg(b)))
+        elif kind == z3.Z3_OP_ITE:
+            guard, yes, no = children
+            self._clause((neg(guard), neg(output), yes))
+            self._clause((neg(guard), output, neg(yes)))
+            self._clause((guard, neg(output), no))
+            self._clause((guard, output, neg(no)))
+        else:
+            raise ConversionError('unsupported residual Boolean observation operator')
+
+    def _boolean_reference(self, expression):
+        pending = [(expression, False)]
+        gates = {z3.Z3_OP_NOT, z3.Z3_OP_AND, z3.Z3_OP_OR, z3.Z3_OP_IMPLIES,
+                 z3.Z3_OP_EQ, z3.Z3_OP_IFF, z3.Z3_OP_XOR, z3.Z3_OP_DISTINCT, z3.Z3_OP_ITE}
+        while pending:
+            expr, ready = pending.pop()
+            key, kind = expr.get_id(), expr.decl().kind()
+            if key in self.boolean_values:
+                continue
+            compound = kind in gates and all(z3.is_bool(arg) for arg in expr.children())
+            if not compound:
+                self.boolean_values[key] = self.literal(expr)
+                continue
+            if not ready:
+                pending.append((expr, True))
+                pending.extend((child, False) for child in reversed(expr.children()))
+                continue
+            children = [self.boolean_values[child.get_id()] for child in expr.children()]
+            output = self.store_atom(('bool', self.fresh_boolean('UF observation Boolean gate')))
+            self._boolean_gate(output, kind, children)
+            self.boolean_values[key] = output
+        return self.boolean_values[expression.get_id()]
+
+    def observation_leaf(self, expr):
+        key = expr.get_id()
+        if key in self.observation_leaves:
+            return self.observation_leaves[key]
+        if z3.is_int(expr):
+            name = self.materialize(self.polynomial(expr))
+        elif z3.is_bool(expr):
+            reference = self._boolean_reference(expr)
+            atom = self.atoms[reference - 1] if type(reference) is not bool and reference > 0 else None
+            if atom and atom[0] == 'bool':
+                name = atom[1]
+            else:
+                name = self.fresh_boolean('UF observation Boolean value')
+                output = self.store_atom(('bool', name))
+                self._clause((self._negate(output), reference))
+                self._clause((output, self._negate(reference)))
+        else:
+            raise ConversionError('unsupported UF observation sort')
+        self.observation_leaves[key] = name
+        return name
+
+    def encode_observations(self, observations):
+        """Materialize rewritten terms without changing the Goal converter."""
+        self.observations, functions = [], {}
+        start = len(self.definitions)
+        for observation in observations:
+            decl = observation.decl().get_id()
+            fid = functions.setdefault(decl, len(functions))
+            leaves = [(str(expr.sort()), self.observation_leaf(expr)) for expr in observation.children()]
+            self.observations.append((fid, leaves))
+        self._encode_definitions(self.definitions[start:])
 
     @staticmethod
     def body(atom, native):
@@ -396,15 +534,31 @@ class _NativeWriter:
         lines += [f'{i} {self.body(atom, True)}' for i, atom in enumerate(self.atoms, 1)]
         lines += ['0', str(len(self.clauses))]
         lines += ['( ' + ' '.join(map(str, clause)) + ' )' for clause in self.clauses]
-        return '\n'.join(lines + ['0', ''])
+        lines.append('0')
+        if self.observations is not None:
+            lines.append(f'UFNIA_OBSERVERS 1 {len(self.observations)}')
+            for fid, leaves in self.observations:
+                lines.append(' '.join([str(fid), str(len(leaves) - 1)] +
+                                      [part for leaf in leaves for part in leaf]))
+        return '\n'.join(lines + [''])
 
     def smt2_text(self):
-        lines = ['(set-logic QF_NIA)']
+        lines = ['(set-logic QF_UFNIA)' if self.observations is not None else '(set-logic QF_NIA)']
         lines += [f'(declare-fun {name} () {info["sort"]})' for name, info in self.symbol_map.items()]
+        if self.observations is not None:
+            functions = {}
+            for fid, leaves in self.observations:
+                functions.setdefault(fid, [sort for sort, _ in leaves])
+            for fid, sorts in functions.items():
+                lines.append(f'(declare-fun {_UF_OBSERVER_PREFIX}native_{fid} ({" ".join(sorts)}) Bool)')
         for clause in self.clauses:
             parts = [self.body(self.atoms[abs(ref) - 1], False) for ref in clause]
             parts = [f'(not {part})' if ref < 0 else part for ref, part in zip(clause, parts)]
             lines.append('(assert (or ' + ' '.join(parts) + '))')
+        if self.observations is not None:
+            for fid, leaves in self.observations:
+                names = ' '.join(name for _, name in leaves)
+                lines.append(f'(assert ({_UF_OBSERVER_PREFIX}native_{fid} {names}))')
         return '\n'.join(lines + ['(check-sat)', ''])
 
 
@@ -493,14 +647,57 @@ def _uf_metadata(state):
         if key not in declarations:
             declarations[key] = {'name': str(decl.name()), 'domain': [str(decl.domain(i)) for i in range(decl.arity())], 'range': str(decl.range())}
         applications.append({'function': key, 'arguments': [arg.sexpr() for arg in args], 'value': result.sexpr()})
+    observed = state['mode'] == 'observed'
     return {'uf_mode': state['mode'], 'uf_pair_upper_bound': state['pair_bound'],
             'uf_declarations': declarations, 'uf_applications': applications,
+            'uf_observers': observed,
+            **({'uf_observer_prefix': _UF_OBSERVER_PREFIX} if observed else {}),
             'requires_congruence_refinement': state['mode'] == 'lazy',
-            'intermediate_semantics': 'normalized SMT-LIB plus this UF application table; SAT requires congruence checking' if state['mode'] == 'lazy' else 'equisatisfiable normalized SMT-LIB'}
+            'intermediate_semantics': ('normalized SMT-LIB plus live UF observer records; SAT requires congruence checking'
+                                       if observed else 'normalized SMT-LIB plus this UF application table; SAT requires congruence checking'
+                                       if state['mode'] == 'lazy' else 'equisatisfiable normalized SMT-LIB')}
+
+
+def _uf_observation_assertions(applications):
+    """Record live UF terms in the same goal rewritten by every tactic.
+
+    The final argument is the abstract function result. Fresh declarations
+    prevent user function names from being interpreted as internal records.
+    """
+    declarations, observations = {}, []
+    for decl, args, value in applications:
+        key = decl.get_id()
+        if key not in declarations:
+            sorts = [decl.domain(i) for i in range(decl.arity())] + [decl.range()]
+            domain = (z3.Sort * len(sorts))(*(sort.ast for sort in sorts))
+            boolean = z3.BoolSort(decl.ctx)
+            declarations[key] = z3.FuncDeclRef(z3.Z3_mk_fresh_func_decl(
+                decl.ctx_ref(), _UF_OBSERVER_PREFIX, len(sorts), domain, boolean.ast), decl.ctx)
+        observations.append(declarations[key](*args, value))
+    return tuple(observations)
 
 
 def convert_assertions(assertions, timeout_ms=30_000, ackermann_limit=100_000,
-                       arbitrary_precision=False, _uf_state=None) -> ConversionResult:
+                       arbitrary_precision=False, _uf_state=None, uf_observers=False, cnf=True,
+                       post_lower_eqs=False, backend='core') -> ConversionResult:
+    if _uf_state is not None:
+        uf_observers = _uf_state['mode'] == 'observed'
+        cnf = _uf_state.get('cnf', cnf)
+        post_lower_eqs = _uf_state.get('post_lower_eqs', post_lower_eqs)
+        backend = _uf_state.get('backend', backend)
+    if backend not in ('core', 'mature'):
+        raise ConversionError(f'unsupported backend {backend!r}')
+    if backend == 'mature':
+        if not arbitrary_precision:
+            raise ConversionError('mature backend requires the arbitrary-precision target')
+        if not cnf:
+            raise ConversionError('mature backend requires CNF on')
+    if uf_observers and not arbitrary_precision:
+        raise ConversionError('UF observers require the arbitrary-precision target')
+    if not cnf and not (arbitrary_precision and uf_observers):
+        raise ConversionError('CNF off requires UF observers and the arbitrary-precision target')
+    if post_lower_eqs and not arbitrary_precision:
+        raise ConversionError('post-lowering equation elimination requires the arbitrary-precision target')
     start = time.monotonic()
     def trace(stage):
         if os.environ.get('UFNIA_TRACE'):
@@ -515,6 +712,7 @@ def convert_assertions(assertions, timeout_ms=30_000, ackermann_limit=100_000,
         state = _uf_state
         if state is not None:
             original_assertions, carrier_encoding = state['original'], state['carrier_encoding']
+            uf_observers = state['mode'] == 'observed'
         elif arbitrary_precision:
             from UFNIA_LS.native_frontend import prepare, UnsupportedCarrier, NativeFrontendError
             try:
@@ -531,7 +729,7 @@ def convert_assertions(assertions, timeout_ms=30_000, ackermann_limit=100_000,
             if applications:
                 counts = Counter(decl.get_id() for decl, _, _ in applications)
                 pair_bound = sum(n * (n - 1) // 2 for n in counts.values())
-                eager = pair_bound <= min(ackermann_limit, 10_000)
+                eager = not uf_observers and pair_bound <= min(ackermann_limit, 10_000)
                 lemmas = []
                 if eager:
                     grouped = {}
@@ -540,10 +738,16 @@ def convert_assertions(assertions, timeout_ms=30_000, ackermann_limit=100_000,
                             lemmas.append(z3.Implies(z3.And(*(a == b for a, b in zip(args, previous_args))), value == previous_value))
                         grouped.setdefault(decl.get_id(), []).append((args, value))
                 assertions += tuple(lemmas)
+                observations = ()
+                if uf_observers:
+                    observations = _uf_observation_assertions(applications)
+                    assertions += observations
                 state = {'applications': applications, 'base': assertions, 'original': original_assertions,
                          'carrier_encoding': carrier_encoding, 'pair_bound': pair_bound,
-                         'mode': 'eager' if eager else 'lazy', 'timeout_ms': timeout_ms,
-                         'ackermann_limit': ackermann_limit}
+                         'mode': 'observed' if uf_observers else 'eager' if eager else 'lazy', 'timeout_ms': timeout_ms,
+                         'ackermann_limit': ackermann_limit, 'cnf': bool(cnf),
+                         'post_lower_eqs': bool(post_lower_eqs), 'backend': backend,
+                         'observer_declarations': {expr.decl().get_id() for expr in observations}}
         else:
             _check_input(assertions)
         goal = z3.Goal(ctx=ctx)
@@ -563,25 +767,26 @@ def convert_assertions(assertions, timeout_ms=30_000, ackermann_limit=100_000,
             z3.With(tactic('purify-arith'), complete=False),
             tactic('elim-term-ite'),
         ]
+        if post_lower_eqs:
+            steps += [optional('propagate-values'), optional('solve-eqs')]
         if not arbitrary_precision:
             steps.append(z3.With(tactic('ackermannize_bv'), div0_ackermann_limit=ackermann_limit))
-        steps += [
-            z3.With(tactic('simplify'), arith_lhs=True, blast_distinct=True),
-            tactic('tseitin-cnf'),
-        ]
+        steps.append(z3.With(tactic('simplify'), arith_lhs=True, blast_distinct=True))
+        if cnf:
+            steps.append(tactic('tseitin-cnf'))
         chain = z3.Then(*steps, ctx=ctx)
         result = z3.TryFor(chain, max(1, int(timeout_ms)))(goal)
         trace('tactics_complete')
         if len(result) != 1 or result[0].precision() != z3.Z3_GOAL_PRECISE:
             raise ConversionError('preprocessor did not produce one precise goal')
-        if arbitrary_precision:
+        if arbitrary_precision and backend == 'core':
             # The GMP evaluator accepts general polynomial ASTs. Do not run
             # the reference reader's Python atom formatter over huge DAGs.
             from UFNIA_LS.native_frontend import analyze_normalized, serialize_normalized
             try:
-                symbols, atom_count, normalized_nodes = analyze_normalized(result[0])
+                symbols, atom_count, normalized_nodes = analyze_normalized(result[0], uf_observers=uf_observers)
                 trace('residual_checked')
-                normalized = serialize_normalized(result[0], symbols)
+                normalized = serialize_normalized(result[0], symbols, uf_observers=uf_observers)
             except NativeFrontendError as error:
                 raise ConversionError(str(error)) from error
             native = normalized
@@ -589,16 +794,22 @@ def convert_assertions(assertions, timeout_ms=30_000, ackermann_limit=100_000,
             symbol_map = {name: {'source': str(expr.decl().name()), 'sort': str(expr.sort())} for name, expr in native_symbols.items()}
             clause_count, product_count = len(result[0]), 0
         else:
-            for expr in _nodes(result[0]):
+            observer_declarations = state.get('observer_declarations', set()) if uf_observers and state else set()
+            observations = tuple(expr for expr in result[0] if expr.decl().get_id() in observer_declarations)
+            observation_ids = {expr.get_id() for expr in observations}
+            for expr in _nodes(result[0], max_nodes=None if arbitrary_precision else 1_000_000):
                 if z3.is_quantifier(expr) or not z3.is_app(expr):
                     raise ConversionError('unsupported residual quantified expression')
                 if expr.decl().kind() == z3.Z3_OP_UNINTERPRETED and expr.num_args():
-                    raise ConversionError(f'UF elimination incomplete (Ackermann resource limit {ackermann_limit}); residual function {expr.decl().name()}')
+                    if expr.get_id() not in observation_ids:
+                        raise ConversionError(f'UF elimination incomplete (Ackermann resource limit {ackermann_limit}); residual function {expr.decl().name()}')
                 if expr.decl().kind() in (z3.Z3_OP_IDIV, z3.Z3_OP_MOD, z3.Z3_OP_REM):
                     raise ConversionError('integer div/mod elimination incomplete')
-            writer = _NativeWriter()
+            writer = _NativeWriter(arbitrary_precision=arbitrary_precision)
             trace('residual_checked')
-            writer.encode(result[0])
+            writer.encode(expr for expr in result[0] if expr.get_id() not in observation_ids)
+            if uf_observers:
+                writer.encode_observations(observations)
             trace('native_encoded')
             native, normalized = writer.native_text(), writer.smt2_text()
             native_symbols, symbol_map = writer.native_symbols, writer.symbol_map
@@ -606,9 +817,15 @@ def convert_assertions(assertions, timeout_ms=30_000, ackermann_limit=100_000,
             normalized_nodes = None
         trace('text_serialized')
         metadata = {
-            'format': 'QF_NIA SMT-LIB' if arbitrary_precision else 'NIA_LS atom-table/CNF',
+            'format': ('mature GMP atom-table/CNF' if backend == 'mature' else
+                       ('QF_UFNIA SMT-LIB with UF observers' if uf_observers else 'QF_NIA SMT-LIB')
+                       if arbitrary_precision else 'NIA_LS atom-table/CNF'),
+            'backend': backend,
             'arbitrary_precision': arbitrary_precision, 'carrier_sort_encoding': carrier_encoding,
-            'frontend_engine': 'native_z3_dag' if arbitrary_precision else 'python_legacy',
+            'uf_observers': bool(uf_observers),
+            'cnf': 'on' if cnf else 'off',
+            'post_lower_eqs': 'on' if post_lower_eqs else 'off',
+            'frontend_engine': 'python_native_writer_mpz' if backend == 'mature' else 'native_z3_dag' if arbitrary_precision else 'python_legacy',
             'z3_version': z3.get_version_string(),
             'z3_full_version': z3.get_full_version(),
             'atom_count': atom_count, 'clause_count': clause_count,
@@ -621,6 +838,11 @@ def convert_assertions(assertions, timeout_ms=30_000, ackermann_limit=100_000,
             'model_reconstruction': 'Z3 goal model converter; opaque carrier representatives remain encoded' if arbitrary_precision else 'not provided; preprocessing and SLS can eliminate original symbols',
             'recommended_solver_options': ['--seconds', '600'] if arbitrary_precision else ['--strategy=corewarm2', '--initialize=off', '--restart-repair=off'],
         }
+        if backend == 'mature':
+            metadata['native_format_version'] = 1
+            if uf_observers:
+                metadata['native_uf_observer_format_version'] = 1
+                metadata['native_uf_observer_count'] = len(writer.observations)
         metadata.update(_uf_metadata(state))
         trace('metadata_complete')
         return ConversionResult(native, normalized, metadata, result[0], original_assertions, native_symbols, state)

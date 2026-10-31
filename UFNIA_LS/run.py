@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 from contextlib import ExitStack
+import hashlib
 import json
 import math
 import os
@@ -25,6 +26,42 @@ from scripts.ufnia_converter import convert_assertions
 from UFNIA_LS.session import SessionReader
 
 CORE = ROOT / 'build' / 'ufnia_ls' / 'ufnia_core'
+MATURE_CORE = ROOT / 'build' / 'ufnia_ls' / 'ufnia_mature'
+MATURE_VERSION = 'mature-mpz-v1'
+MATURE_UF_VERSION = 'mature-mpz-v2'
+_CORE_STRATEGY_DEFAULTS = {
+    'interaction': 'joint', 'scoring': 'count', 'distance': 'classic',
+    'arithmetic_repair': 'off', 'active_arithmetic_rows': 'off',
+    'search_policy': 'legacy', 'search_phase': 'mixed', 'candidate_policy': 'broad',
+}
+_OPTION_FIELDS = ('backend', 'seconds', 'seed', 'preprocess_timeout', 'ackermann_limit',
+                  'uf_observers', 'interaction', 'scoring', 'cnf', 'distance',
+                  'arithmetic_repair', 'active_arithmetic_rows', 'post_lower_eqs',
+                  'search_policy', 'search_phase', 'candidate_policy', 'dump_candidate')
+
+
+def _selected_core(args):
+    return MATURE_CORE if args.backend == 'mature' else CORE
+
+
+def _backend_report(args):
+    requested = {name: getattr(args, name) for name in _OPTION_FIELDS}
+    effective = dict(requested)
+    if args.backend == 'mature':
+        effective.update({name: None for name in _CORE_STRATEGY_DEFAULTS})
+        if args.uf_observers:
+            effective.update(interaction=args.interaction, scoring=args.scoring)
+    result = {'backend': args.backend,
+              'backend_configuration': ('mature_uf_observed' if args.uf_observers else 'mature_intrinsic')
+                                       if args.backend == 'mature' else 'ufnia_core',
+              'backend_version': None, 'core_binary': str(_selected_core(args)),
+              'core_sha256': getattr(args, '_core_sha256', None),
+              'requested_options': requested, 'effective_options': effective}
+    if args.backend == 'mature':
+        result.update({name: None for name in _CORE_STRATEGY_DEFAULTS})
+        if args.uf_observers:
+            result.update(interaction=args.interaction, scoring=args.scoring)
+    return result
 
 
 def _number(value):
@@ -51,13 +88,26 @@ def _seed(value):
 def _arguments(argv):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('input', type=Path, help='SMT-LIB input; incremental sessions are supported')
+    parser.add_argument('--backend', choices=('core', 'mature'), default='core', help='GMP search backend (default: core)')
     parser.add_argument('--parse-only', action='store_true', help='preprocess and verify actual GMP core input parsing')
     parser.add_argument('--seconds', type=_number, default=600, help='SLS/refinement budget per query (default: 600)')
     parser.add_argument('--preprocess-timeout', type=_number, default=120, help='tactic timeout in seconds per preprocessing round (default: 120)')
     parser.add_argument('--ackermann-limit', type=_positive, default=1000000)
     parser.add_argument('--seed', type=_seed, default=0)
+    parser.add_argument('--uf-observers', action='store_true', help='evaluate live UF congruence observations inside the SLS core')
+    parser.add_argument('--interaction', choices=('none', 'soft', 'joint'), default='joint', help='UF search interaction with live observers (default: joint)')
+    parser.add_argument('--scoring', choices=('count', 'paws'), default='count', help='SLS scoring policy (default: count)')
+    parser.add_argument('--cnf', choices=('on', 'off'), default='on', help='Tseitin CNF conversion; off requires UF observers (default: on)')
+    parser.add_argument('--distance', choices=('classic', 'structural'), default='classic', help='Boolean distance policy (default: classic)')
+    parser.add_argument('--post-lower-eqs', choices=('on', 'off'), default='off', help='optional bounded equation elimination after arithmetic lowering (default: off)')
+    parser.add_argument('--arithmetic-repair', choices=('off', 'linear', 'quotient', 'joint'), default='off', help='arithmetic joint candidate generation (default: off)')
+    parser.add_argument('--active-arithmetic-rows', choices=('off', 'on'), default='off', help='temporary guarded arithmetic repair rows; requires arithmetic repair (default: off)')
+    parser.add_argument('--search-policy', choices=('legacy', 'greedy'), default='legacy', help='SLS move selection policy (default: legacy)')
+    parser.add_argument('--search-phase', choices=('mixed', 'alternating'), default='mixed', help='Boolean/integer phase policy; alternating requires greedy search (default: mixed)')
+    parser.add_argument('--candidate-policy', choices=('broad', 'critical'), default='broad', help='arithmetic candidate ordering policy (default: broad)')
     parser.add_argument('--model-output', type=Path, help='verified model responses in SMT-LIB, with query comments')
     parser.add_argument('--keep-dir', type=Path, help='retain intermediate files in a unique subdirectory')
+    parser.add_argument('--dump-candidate', action='store_true', help='retain unknown candidate and normalized violations; requires --keep-dir')
     parser.add_argument('--json-report', type=Path, help='write aggregate counts, timings and the last query report')
     parser.add_argument('--query', type=_positive, help='process only this 1-based query')
     return parser.parse_args(argv)
@@ -73,6 +123,25 @@ def _aliases(left, right):
 
 
 def _paths(args):
+    if args.backend == 'mature':
+        if args.cnf != 'on':
+            raise ValueError('--backend mature requires --cnf on')
+        unsupported = [name.replace('_', '-') for name, default in _CORE_STRATEGY_DEFAULTS.items()
+                       if getattr(args, name) != default and
+                       not (args.uf_observers and name in ('interaction', 'scoring'))]
+        if args.dump_candidate:
+            unsupported.append('dump-candidate')
+        if unsupported:
+            raise ValueError('--backend mature uses its intrinsic strategy; unsupported options: ' +
+                             ', '.join('--' + name for name in unsupported))
+    if args.dump_candidate and args.keep_dir is None:
+        raise ValueError('--dump-candidate requires --keep-dir')
+    if args.cnf == 'off' and not args.uf_observers:
+        raise ValueError('--cnf off requires --uf-observers')
+    if args.active_arithmetic_rows == 'on' and args.arithmetic_repair == 'off':
+        raise ValueError('--active-arithmetic-rows on requires --arithmetic-repair linear, quotient, or joint')
+    if args.search_phase == 'alternating' and args.search_policy != 'greedy':
+        raise ValueError('--search-phase alternating requires --search-policy greedy')
     args.input = args.input.resolve(strict=True)
     if not args.input.is_file():
         raise ValueError('input must be a regular SMT-LIB file')
@@ -128,11 +197,12 @@ def _last_json(text):
 def _compact_metadata(metadata):
     # Full symbol/application tables are retained in the intermediate metadata,
     # never copied into the aggregate report for every query.
-    names = ('format', 'arbitrary_precision', 'carrier_sort_encoding', 'z3_version',
+    names = ('format', 'backend', 'native_format_version', 'native_uf_observer_format_version',
+             'native_uf_observer_count', 'arbitrary_precision', 'carrier_sort_encoding', 'z3_version',
              'atom_count', 'clause_count', 'input_assertion_count',
              'integer_variable_count', 'boolean_variable_count', 'binary_product_count',
              'ackermann_limit', 'conversion_seconds', 'model_reconstruction',
-             'uf_mode', 'uf_application_count', 'uf_applications_count',
+             'uf_mode', 'uf_observers', 'uf_observer_prefix', 'cnf', 'post_lower_eqs', 'uf_application_count', 'uf_applications_count',
              'estimated_congruence_pairs', 'congruence_pair_count', 'uf_pair_upper_bound',
              'requires_congruence_refinement', 'intermediate_semantics')
     compact = {name: metadata[name] for name in names if name in metadata}
@@ -148,8 +218,19 @@ def _query(query, args, work):
               'input_assertions': query.assertion_count, 'status': 'unknown',
               'original_model_validated': False, 'validated': False,
               'rounds': 0, 'refinement_lemmas': 0,
+              'uf_observers': args.uf_observers, 'interaction': args.interaction if args.uf_observers else None,
+              'scoring': args.scoring,
+              'cnf': args.cnf, 'distance': args.distance,
+              'post_lower_eqs': args.post_lower_eqs,
+              'arithmetic_repair': args.arithmetic_repair,
+              'active_arithmetic_rows': args.active_arithmetic_rows,
+              'search_policy': args.search_policy,
+              'search_phase': args.search_phase,
+              'candidate_policy': args.candidate_policy,
+              'dump_candidate': args.dump_candidate,
               'timing': {'preprocessing_seconds': 0.0, 'core_seconds': 0.0,
                          'model_validation_seconds': 0.0}}
+    report.update(_backend_report(args))
     base = query.assertions
     lemmas = []
     seen_lemmas = set()
@@ -160,8 +241,11 @@ def _query(query, args, work):
         iteration = report['rounds']
         stem = work / f'query-{query.index:06d}.round-{iteration:04d}'
         normalized = Path(str(stem) + '.normalized.smt2')
+        native = Path(str(stem) + '.native')
         metadata_path = Path(str(stem) + '.metadata.json')
         core_model = Path(str(stem) + '.core-model.json')
+        candidate = Path(str(stem) + '.candidate.json')
+        violations = Path(str(stem) + '.violations.json')
         before = time.monotonic()
         if deadline is not None and before >= deadline:
             report['reason'] = 'SLS/refinement budget exhausted'
@@ -179,7 +263,9 @@ def _query(query, args, work):
                     timeout_seconds = min(timeout_seconds, max(0, deadline - before))
                 conversion = convert_assertions(base + tuple(lemmas),
                     timeout_ms=max(1, int(timeout_seconds * 1000)),
-                    ackermann_limit=args.ackermann_limit, arbitrary_precision=True)
+                    ackermann_limit=args.ackermann_limit, arbitrary_precision=True,
+                    uf_observers=args.uf_observers, cnf=args.cnf == 'on',
+                    post_lower_eqs=args.post_lower_eqs == 'on', backend=args.backend)
         except Exception as error:
             report['timing']['preprocessing_seconds'] += time.monotonic() - before
             report['reason'] = f'preprocessing failed: {error}'
@@ -189,28 +275,52 @@ def _query(query, args, work):
             break
         report['timing']['preprocessing_seconds'] += time.monotonic() - before
         normalized.write_text(conversion.normalized_smt2)
+        if args.backend == 'mature':
+            native.write_text(conversion.native)
         _json(metadata_path, conversion.metadata)
         report['preprocessing'] = _compact_metadata(conversion.metadata)
         carrier = bool(conversion.metadata.get('carrier_sort_encoding'))
-        lazy = conversion.metadata.get('uf_mode') == 'lazy'
-        report['normalized_semantics'] = 'abstraction_with_congruence_table' if lazy else 'equisatisfiable'
+        abstract = conversion.metadata.get('uf_mode') in ('lazy', 'observed')
+        report['normalized_semantics'] = 'abstraction_with_congruence_table' if abstract else 'equisatisfiable'
         report['model_limitation'] = (
             'Opaque carrier representatives remain encoded as Int; original carrier-sort models are not reconstructed.'
             if carrier else None)
         if args.keep_dir is not None:
             report['artifacts'] = {'normalized': str(normalized), 'metadata': str(metadata_path),
                                    'core_model': str(core_model)}
+            if args.backend == 'mature':
+                report['artifacts']['native'] = str(native)
         report['rounds'] += 1
+        core_input = native if args.backend == 'mature' else normalized
+        executable = _selected_core(args)
         if args.parse_only:
-            command = [str(CORE), str(normalized), '--parse-only']
+            command = [str(executable), str(core_input), '--parse-only']
             timeout = None
         else:
             if deadline is None:
                 deadline = time.monotonic() + args.seconds
             remaining = max(0.0, deadline - time.monotonic())
-            command = [str(CORE), str(normalized), '--seconds', str(remaining),
+            command = [str(executable), str(core_input), '--seconds', str(remaining),
                        '--seed', str(args.seed), '--model-output', str(core_model)]
             timeout = remaining + 5
+        if args.uf_observers:
+            command += ['--uf-observers', '--interaction', args.interaction]
+        if args.uf_observers or (args.backend == 'core' and args.scoring != 'count'):
+            command += ['--scoring', args.scoring]
+        if args.backend == 'core' and (args.uf_observers or args.distance != 'classic'):
+            command += ['--distance', args.distance]
+        if args.backend == 'core' and args.arithmetic_repair != 'off':
+            command += ['--arithmetic-repair', args.arithmetic_repair]
+        if args.backend == 'core' and args.active_arithmetic_rows == 'on':
+            command += ['--active-arithmetic-rows', 'on']
+        if args.backend == 'core' and args.search_policy != 'legacy':
+            command += ['--search-policy', args.search_policy]
+        if args.backend == 'core' and args.search_phase != 'mixed':
+            command += ['--search-phase', args.search_phase]
+        if args.backend == 'core' and args.candidate_policy != 'broad':
+            command += ['--candidate-policy', args.candidate_policy]
+        if args.backend == 'core' and args.dump_candidate:
+            command += ['--candidate-output', str(candidate), '--violations-output', str(violations)]
         before = time.monotonic()
         try:
             proc = subprocess.run(command, capture_output=True, text=True, timeout=timeout)
@@ -218,26 +328,48 @@ def _query(query, args, work):
             report['timing']['core_seconds'] += time.monotonic() - before
             report['reason'] = 'SLS process exceeded the wall-clock budget'
             break
+        finally:
+            if args.dump_candidate:
+                for name, path in (('candidate', candidate), ('violations', violations)):
+                    if path.is_file():
+                        report['artifacts'][name] = str(path)
         report['timing']['core_seconds'] += time.monotonic() - before
         if args.keep_dir is not None:
             Path(str(stem) + '.core.stdout').write_text(proc.stdout)
             Path(str(stem) + '.core.stderr').write_text(proc.stderr)
+        stats = _last_json(proc.stdout if args.parse_only else proc.stderr)
+        report['core'] = stats
+        report['backend_version'] = stats.get('backend_version')
+        if args.backend == 'mature' and (stats.get('backend') != 'mature_mpz' or
+                                         stats.get('backend_version') !=
+                                         (MATURE_UF_VERSION if args.uf_observers else MATURE_VERSION)):
+            report['reason'] = stats.get('error', 'mature core backend identity/version mismatch')
+            if args.parse_only:
+                report['status'] = 'error'
+            break
         if args.parse_only:
-            stats = _last_json(proc.stdout)
-            report['core'] = stats
             if proc.returncode == 0 and stats.get('status') == 'parsed':
                 report['status'] = 'parsed'
             else:
                 report['status'] = 'error'
                 report['reason'] = stats.get('error', proc.stderr.strip() or 'GMP core failed to parse normalized input')
             break
-        stats = _last_json(proc.stderr)
-        report['core'] = stats
+        if args.backend == 'mature' and args.uf_observers and (
+                stats.get('uf_observers') is not True or
+                stats.get('interaction') != args.interaction or stats.get('scoring') != args.scoring):
+            report['reason'] = 'mature UF core option evidence does not match the requested policy'
+            break
         if proc.returncode != 0 or proc.stdout.strip() != 'sat':
             report['reason'] = stats.get('error', 'SLS did not find a validated model within the budget')
             break
         if stats.get('validated') is not True:
             report['reason'] = 'core reported sat without a validated assignment'
+            break
+        if args.backend == 'mature' and args.uf_observers and (
+                stats.get('status') != 'sat' or type(stats.get('uf_conflicts')) is not int or
+                stats.get('validation_scope') != 'native_cnf_and_uf_congruence' or
+                stats.get('uf_conflicts') != 0):
+            report['reason'] = 'mature UF core reported sat without exact CNF/congruence validation'
             break
         before = time.monotonic()
         values = None
@@ -289,19 +421,33 @@ def _main(argv=None):
     args = _arguments(argv)
     try:
         _paths(args)
-        if not CORE.is_file() or not os.access(CORE, os.X_OK):
-            raise ValueError(f'Core executable missing: {CORE}. Run make -C UFNIA_LS from {ROOT}.')
+        executable = _selected_core(args)
+        if not executable.is_file() or not os.access(executable, os.X_OK):
+            build = 'make -C UFNIA_LS mature' if args.backend == 'mature' else 'make -C UFNIA_LS'
+            raise ValueError(f'Core executable missing: {executable}. Run {build} from {ROOT}.')
+        args._core_sha256 = hashlib.sha256(executable.read_bytes()).hexdigest()
     except (OSError, ValueError) as error:
         print(f'error: {error}', file=sys.stderr)
         return 2
     started = time.monotonic()
     summary = {'input': str(args.input), 'mode': 'parse-only' if args.parse_only else 'solve',
+               'uf_observers': args.uf_observers, 'interaction': args.interaction if args.uf_observers else None,
+               'scoring': args.scoring,
+               'cnf': args.cnf, 'distance': args.distance,
+               'post_lower_eqs': args.post_lower_eqs,
+               'arithmetic_repair': args.arithmetic_repair,
+               'active_arithmetic_rows': args.active_arithmetic_rows,
+               'search_policy': args.search_policy,
+               'search_phase': args.search_phase,
+               'candidate_policy': args.candidate_policy,
+               'dump_candidate': args.dump_candidate,
                'status': 'complete', 'queries_seen': 0, 'queries_processed': 0,
                'counts': {'parsed': 0, 'sat': 0, 'unknown': 0, 'errors': 0},
                'timing': {'preprocessing_seconds': 0.0, 'core_seconds': 0.0,
                           'model_validation_seconds': 0.0},
                'complete_solver_used': False, 'model_output_written': False,
-               'work_dir': None, 'last_query': None}
+               'model_output_sha256': None, 'work_dir': None, 'last_query': None}
+    summary.update(_backend_report(args))
     exit_code = 0
     with ExitStack() as stack:
         if args.keep_dir is not None:
@@ -322,6 +468,8 @@ def _main(argv=None):
                 print(f'[query {query.index}] preprocessing {query.assertion_count} assertions', file=sys.stderr)
                 report, model_text = _query(query, args, work)
                 summary['last_query'] = report
+                if report.get('backend_version') is not None:
+                    summary['backend_version'] = report['backend_version']
                 summary['queries_processed'] += 1
                 status = report['status']
                 if status in summary['counts']:
@@ -361,6 +509,7 @@ def _main(argv=None):
             model_stream.flush()
             _publish(model_path, args.model_output)
             summary['model_output_written'] = True
+            summary['model_output_sha256'] = hashlib.sha256(args.model_output.read_bytes()).hexdigest()
             summary['model_output'] = str(args.model_output)
         summary['timing']['total_seconds'] = round(time.monotonic() - started, 6)
         summary['timing'] = {key: round(value, 6) for key, value in summary['timing'].items()}

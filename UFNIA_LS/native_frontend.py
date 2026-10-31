@@ -60,9 +60,9 @@ def _library():
         library.ufnia_frontend_ast_kind_address.argtypes = []
         library.ufnia_frontend_ast_kind_address.restype = ctypes.c_size_t
         library.ufnia_frontend_analyze.argtypes = [ContextObj, AstVectorObj,
-            ctypes.POINTER(ctypes.c_void_p), ctypes.POINTER(ctypes.c_size_t), ctypes.POINTER(ctypes.c_size_t)]
+            ctypes.POINTER(ctypes.c_void_p), ctypes.POINTER(ctypes.c_size_t), ctypes.POINTER(ctypes.c_size_t), ctypes.c_int]
         library.ufnia_frontend_analyze.restype = ctypes.c_int
-        library.ufnia_frontend_serialize.argtypes = [ContextObj, AstVectorObj, ctypes.c_void_p, ctypes.POINTER(ctypes.c_int)]
+        library.ufnia_frontend_serialize.argtypes = [ContextObj, AstVectorObj, ctypes.c_void_p, ctypes.POINTER(ctypes.c_int), ctypes.c_int]
         library.ufnia_frontend_serialize.restype = ctypes.c_char_p
         native_address = library.ufnia_frontend_ast_kind_address()
         python_address = ctypes.cast(z3.z3core.Z3_get_ast_kind.__defaults__[0].f, ctypes.c_void_p).value
@@ -151,20 +151,22 @@ def _normalized_error(library, code):
     raise error(message)
 
 
-def analyze_normalized(assertions):
+def analyze_normalized(assertions, *, uf_observers=False):
     """Return ``(symbols_tuple, unique_boolean_atom_count, ast_node_count)``.
 
     Rejects every residual operator unsupported by the exact GMP evaluator.
     Symbol order is deterministic and is used by ``serialize_normalized`` for
     canonical i_INDEX/b_INDEX names. Bool equalities are logical connectives;
     arithmetic comparisons and Bool variables count as atoms.
+    ``uf_observers`` permits positive top-level ``__ufnia_observe_`` records;
+    their argument expressions share the same canonical symbol namespace.
     """
     ctx, vector = _normalized_vector(assertions)
     library = _library()
     output = ctypes.c_void_p()
     atoms, nodes = ctypes.c_size_t(), ctypes.c_size_t()
     code = library.ufnia_frontend_analyze(ctx.ref(), vector.vector,
-        ctypes.byref(output), ctypes.byref(atoms), ctypes.byref(nodes))
+        ctypes.byref(output), ctypes.byref(atoms), ctypes.byref(nodes), int(uf_observers))
     try:
         if code:
             _normalized_error(library, code)
@@ -177,7 +179,7 @@ def analyze_normalized(assertions):
             library.ufnia_frontend_release(ctx.ref(), output)
 
 
-def serialize_normalized(assertions, symbols=None):
+def serialize_normalized(assertions, symbols=None, *, uf_observers=False):
     """Print one shared-DAG SMT-LIB assertion with canonical variable names.
 
     Optional ``symbols`` must be the tuple returned by ``analyze_normalized``
@@ -196,7 +198,7 @@ def serialize_normalized(assertions, symbols=None):
             symbol_vector.push(symbol)
     code = ctypes.c_int()
     serialized = library.ufnia_frontend_serialize(ctx.ref(), vector.vector,
-        symbol_vector.vector if symbol_vector is not None else None, ctypes.byref(code))
+        symbol_vector.vector if symbol_vector is not None else None, ctypes.byref(code), int(uf_observers))
     if code.value:
         _normalized_error(library, code.value)
     if serialized is None:

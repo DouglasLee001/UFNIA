@@ -5,6 +5,7 @@
 #include <exception>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -44,17 +45,43 @@ bool normalized_supported(Z3_decl_kind kind){
     default:return false;
     }
 }
+bool observer(Z3_context context,Z3_ast expression){
+    if(Z3_get_ast_kind(context,expression)!=Z3_APP_AST)return false;
+    const auto app=Z3_to_app(context,expression);
+    const auto declaration=Z3_get_app_decl(context,app);
+    if(Z3_get_decl_kind(context,declaration)!=Z3_OP_UNINTERPRETED ||
+       Z3_get_app_num_args(context,app)<2 ||
+       Z3_get_sort_kind(context,Z3_get_sort(context,expression))!=Z3_BOOL_SORT)return false;
+    const auto name=Z3_get_decl_name(context,declaration);
+    return Z3_get_symbol_kind(context,name)==Z3_STRING_SYMBOL &&
+        std::string(Z3_get_symbol_string(context,name)).rfind("__ufnia_observe_",0)==0;
+}
 void analyze_normalized(Z3_context context,Z3_ast_vector assertions,OwnedVector& symbols,
-                        size_t& atoms,size_t& nodes){
+                        size_t& atoms,size_t& nodes,bool uf_observers=false){
     atoms=0;nodes=0;
     std::vector<Z3_ast> pending;
     std::vector<uint64_t> seen;
+    std::unordered_set<unsigned> observer_roots;
     const unsigned count=Z3_ast_vector_size(context,assertions);
     for(unsigned i=0;i<count;++i){
         auto root=Z3_ast_vector_get(context,assertions,i);
         if(Z3_get_sort_kind(context,Z3_get_sort(context,root))!=Z3_BOOL_SORT)
             throw Failure{2,"assertions must have Bool sort"};
         pending.push_back(root);
+    }
+    if(uf_observers){
+        // Only positive top-level conjuncts are records. A marker in a Boolean
+        // context must never silently become an unconditional observation.
+        auto roots=pending;
+        while(!roots.empty()){
+            auto root=roots.back();roots.pop_back();
+            if(observer(context,root))observer_roots.insert(Z3_get_ast_id(context,root));
+            else if(Z3_get_ast_kind(context,root)==Z3_APP_AST){
+                auto app=Z3_to_app(context,root);
+                if(Z3_get_decl_kind(context,Z3_get_app_decl(context,app))==Z3_OP_AND)
+                    for(unsigned i=0;i<Z3_get_app_num_args(context,app);++i)roots.push_back(Z3_get_app_arg(context,app,i));
+            }
+        }
     }
     while(!pending.empty()){
         const auto expression=pending.back();pending.pop_back();
@@ -74,8 +101,10 @@ void analyze_normalized(Z3_context context,Z3_ast_vector assertions,OwnedVector&
         const auto kind=Z3_get_decl_kind(context,declaration);
         const unsigned arity=Z3_get_app_num_args(context,app);
         if(kind==Z3_OP_UNINTERPRETED){
-            if(arity)throw Failure{2,"uninterpreted functions remain in normalized input"};
-            symbols.push(expression);if(sort==Z3_BOOL_SORT)++atoms;
+            if(arity){
+                if(!uf_observers || !observer_roots.count(id))
+                    throw Failure{2,"uninterpreted functions remain in normalized input"};
+            }else{symbols.push(expression);if(sort==Z3_BOOL_SORT)++atoms;}
         }else{
             if(!normalized_supported(kind))throw Failure{2,"operator unsupported by the GMP core remains in normalized input: "+std::to_string(unsigned(kind))};
             if(sort==Z3_BOOL_SORT && (kind==Z3_OP_LE || kind==Z3_OP_GE || kind==Z3_OP_LT || kind==Z3_OP_GT ||
@@ -164,11 +193,12 @@ int ufnia_frontend_prepare(Z3_context context,Z3_ast_vector assertions,
 }
 
 int ufnia_frontend_analyze(Z3_context context,Z3_ast_vector assertions,
-                          Z3_ast_vector* output_symbols,size_t* output_atoms,size_t* output_nodes) noexcept {
+                          Z3_ast_vector* output_symbols,size_t* output_atoms,size_t* output_nodes,
+                          int uf_observers) noexcept {
     *output_symbols=nullptr;*output_atoms=0;*output_nodes=0;last_error.clear();
     try{
         OwnedVector symbols(context);
-        analyze_normalized(context,assertions,symbols,*output_atoms,*output_nodes);
+        analyze_normalized(context,assertions,symbols,*output_atoms,*output_nodes,uf_observers!=0);
         *output_symbols=symbols.release();return 0;
     }catch(const Failure& error){last_error=error.message;return error.code;}
     catch(const std::exception& error){last_error=error.what();return 3;}
@@ -176,11 +206,11 @@ int ufnia_frontend_analyze(Z3_context context,Z3_ast_vector assertions,
 }
 
 const char* ufnia_frontend_serialize(Z3_context context,Z3_ast_vector assertions,
-                                   Z3_ast_vector supplied_symbols,int* output_code) noexcept {
+                                   Z3_ast_vector supplied_symbols,int* output_code,int uf_observers) noexcept {
     *output_code=0;last_error.clear();
     try{
         OwnedVector discovered(context);
-        if(!supplied_symbols){size_t atoms=0,nodes=0;analyze_normalized(context,assertions,discovered,atoms,nodes);supplied_symbols=discovered.vector;}
+        if(!supplied_symbols){size_t atoms=0,nodes=0;analyze_normalized(context,assertions,discovered,atoms,nodes,uf_observers!=0);supplied_symbols=discovered.vector;}
         AstReferences retained(context);
         std::vector<Z3_ast> roots,from,to;
         const unsigned count=Z3_ast_vector_size(context,assertions);
@@ -203,7 +233,7 @@ const char* ufnia_frontend_serialize(Z3_context context,Z3_ast_vector assertions
         }
         if(symbol_count)conjunction=retained.retain(Z3_substitute(context,conjunction,symbol_count,from.data(),to.data()));
         // A single assertion lets the printer share DAG nodes across all clauses.
-        const char* serialized=Z3_benchmark_to_smtlib_string(context,"ufnia normalized","QF_NIA","unknown","",0,nullptr,conjunction);
+        const char* serialized=Z3_benchmark_to_smtlib_string(context,"ufnia normalized",uf_observers?"QF_UFNIA":"QF_NIA","unknown","",0,nullptr,conjunction);
         if(Z3_get_error_code(context)!=Z3_OK)throw Failure{3,"Z3 C API normalized serialization failed"};
         return serialized;
     }catch(const Failure& error){last_error=error.message;*output_code=error.code;return nullptr;}

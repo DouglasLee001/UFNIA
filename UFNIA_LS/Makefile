@@ -5,8 +5,13 @@ PYTHON ?= python3
 PY_Z3_DIR := $(shell $(PYTHON) -c 'import pathlib,z3; print(pathlib.Path(z3.__file__).resolve().parent)')
 FRONTEND := ../build/ufnia_ls/native_frontend.so
 
-.PHONY: all test native-frontend
-all: $(TARGET) $(FRONTEND)
+.PHONY: all test native-frontend mature
+all: $(TARGET) $(FRONTEND) mature
+
+# Optional, independently built migration of the full reference search loop.
+# Its CLI is selected explicitly; the existing backend remains the default.
+mature:
+	$(MAKE) -C mature
 
 $(TARGET): core.cpp mpz_sls.h mpz_preprocess.h
 	mkdir -p $(@D)
