@@ -48,7 +48,10 @@ int main(int argc,char** argv){
 }''' )
         mature=ROOT/'UFNIA_LS/mature'
         flags=['-DNIA_SCORING_VERIFY','-DNIA_CANDIDATE_VERIFY','-DNIA_FAST_MOVE_VERIFY'] if os.environ.get('MATURE_VERIFY') else []
-        p=subprocess.run(['g++','-O1','-std=c++17',*flags,'-I',str(mature),str(source),*[str(mature/x) for x in ['native.cpp','nia_uf.cpp','nia_ls.cpp','nia_initialize.cpp']],'-lgmpxx','-lgmp','-o',str(cls.trace)],capture_output=True,text=True)
+        gmp=ROOT/'build/ufnia_ls/deps/gmp'
+        includes=['-I',str(gmp)] if gmp.is_dir() else []
+        libraries=[str(gmp/'libgmpxx.a'),str(gmp/'libgmp.a')] if gmp.is_dir() else ['-lgmpxx','-lgmp']
+        p=subprocess.run(['g++','-O1','-std=c++17',*flags,*includes,'-I',str(mature),str(source),*[str(mature/x) for x in ['native.cpp','nia_uf.cpp','nia_ls.cpp','nia_initialize.cpp','nia_affine.cpp']],*libraries,'-o',str(cls.trace)],capture_output=True,text=True)
         if p.returncode:raise AssertionError(p.stderr)
     @classmethod
     def tearDownClass(cls):cls.work.cleanup()

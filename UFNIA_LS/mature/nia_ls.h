@@ -1,11 +1,14 @@
 #pragma once
 #include <gmpxx.h>
 #include <optional>
+#include <array>
+#include <memory>
 #include <set>
 #include <unordered_map>
 #include <climits>
 #include "nia_linear_initialize.h"
 #include "nia_novelty_score.h"
+#include "affine_math.h"
 #include <cstdio>
 #include <chrono>
 #include <string.h>
@@ -28,6 +31,15 @@
 namespace nia {
 using Int=mpz_class;
 using MoveScore=int64_t;
+struct AffineFootprint;
+using AffineFootprintHandle=std::shared_ptr<const AffineFootprint>;
+struct AffineTime {
+ uint64_t* counter;std::chrono::steady_clock::time_point start;
+ explicit AffineTime(uint64_t* value):counter(value){if(counter)start=std::chrono::steady_clock::now();}
+ void stop(){if(counter){*counter+=std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now()-start).count();counter=nullptr;}}
+ ~AffineTime(){stop();}
+};
+
 inline Int integer_power(const Int& value,int exponent){Int result;mpz_pow_ui(result.get_mpz_t(),value.get_mpz_t(),exponent);return result;}
 
 
@@ -125,8 +137,61 @@ public:
         unsigned conflicts()const{return unsigned(members.size())-(frequency_counts.empty()?0:frequency_counts.rbegin()->first);}
     };
     using UfPatch=std::map<size_t,Int>; // Absolute mature values; Bool=-1/+1.
+    bool affine_enabled=true;
+    bool affine_footprint_cache_enabled=false;
+    mutable uint64_t affine_footprint_cache_hits=0,affine_footprint_cache_misses=0,affine_footprint_cache_fallbacks=0;
+    mutable uint64_t affine_footprint_cache_inserts=0,affine_footprint_cache_entries=0,affine_footprint_cache_bytes=0;
+    void clear_affine_footprint_cache();
+    std::string affine_footprint_cache_report()const;
+    uint64_t affine_footprint_cache_generation()const{return affine_footprint_structure_generation;}
+    const std::set<size_t>& affine_footprint_clauses(const AffineFootprintHandle& owner)const;
+    const std::set<size_t>& affine_footprint_literals(const AffineFootprintHandle& owner)const;
+private:
+    struct AffineFootprintEntry {
+      size_t view=0,multiplier=0;uint64_t generation=0;
+      std::vector<size_t> members;
+      AffineFootprintHandle owner;
+    };
+    mutable std::array<AffineFootprintEntry,64> affine_footprint_cache;
+    uint64_t affine_footprint_structure_generation=0;
+public:
+#ifdef NIA_AFFINE_FOOTPRINT_TEST_OBSERVER
+    struct AffineFootprintTestObserver {uint64_t builds=0,static_slots=0,numeric_calls=0,numeric_slots=0;};
+    mutable AffineFootprintTestObserver affine_footprint_test_observer;
+    mutable bool affine_footprint_test_fail_allocation=false;
+#endif
+    bool affine_progress_enabled=false;std::string affine_progress_path;
+    double affine_progress_last_seconds=0;uint64_t affine_progress_writes=0,affine_progress_errors=0;
+    uint64_t affine_build_ns=0,affine_generate_ns=0,affine_score_ns=0,affine_candidate_ns=0,affine_commit_ns=0;
+    uint64_t affine_skip_size=0,affine_skip_no_root=0,affine_skip_domain=0,affine_skip_bits=0;
+    void maybe_write_affine_progress(double elapsed,bool final=false);
+    std::vector<affine::View> affine_views;
+    std::vector<int> affine_component;
+    std::vector<affine::Member> affine_member;
+    std::vector<unsigned char> affine_literal,affine_defining_literal;
+    uint64_t affine_build_components=0,affine_derived=0,affine_skip_math=0,affine_skip_footprint=0,affine_skip_numeric=0;
+    uint64_t affine_proposals=0,affine_scores=0,affine_commits=0,affine_rejections=0,affine_poly_unsupported=0,affine_poly_budget=0,affine_nanoseconds=0;
+    bool affine_installed()const{return affine_enabled&&!affine_views.empty();}
+    bool affine_patch_touches(const UfPatch& patch)const{
+      if(!affine_installed())return false;
+      for(const auto& [v,x]:patch){(void)x;if(v<affine_component.size()&&affine_component[v]>=0)return true;}
+      return false;
+    }
+    affine::PolyResult effective_affine_polynomial(int literal,size_t root,size_t& work)const;
+
+    void prepare_affine_views();
+    void initialize_affine_values();
+    bool normalize_affine_patch(const UfPatch& requests,UfPatch& materialized,UfPatch* canonical=nullptr)const;
+    bool preflight_affine_patch(const UfPatch& materialized,AffineFootprintHandle* retained=nullptr)const;
+    bool commit_affine_patch(const UfPatch& requests);
+    bool verify_affine()const;
+    void generate_affine_operations(bool use_tabu,int literal,int& count);
+    bool affine_no_operation_random_walk(int signed_literal);
+    MoveScore evaluate_search_move(size_t variable,const Int& delta,uint64_t* break_cost=nullptr);
+    void raw_critical_move(size_t variable,const Int& delta,bool track_search);
+    void record_affine_search_move(size_t variable,const Int& delta);
     struct UfCandidate {UfPatch patch;bool separation=false,compensated=false;};
-    struct UfLinearRow {Int key;std::vector<std::pair<size_t,Int>> terms;};
+    struct UfLinearRow {Int key;std::vector<std::pair<size_t,Int>> terms;size_t literal=0;};
     std::vector<UfLinearRow> uf_linear_rows;
     std::vector<std::vector<size_t>> uf_variable_rows;
     uint64_t uf_compensation_proposals=0,uf_compensated_moves=0;
@@ -156,7 +221,7 @@ public:
     bool valid_uf_patch(const UfPatch& patch)const;
     std::vector<UfCandidate> uf_candidates();
     UfPatch compensate_uf_patch(const UfPatch& seed)const;
-    MoveScore score_uf_patch(const UfPatch& patch,uint64_t* future_cnf=nullptr,uint64_t* future_uf=nullptr);
+    MoveScore score_uf_patch(const UfPatch& patch,uint64_t* future_cnf=nullptr,uint64_t* future_uf=nullptr,MoveScore* uf_component=nullptr,uint64_t* weighted_break=nullptr);
     bool uf_patch_tabu(const UfPatch& patch)const;
     bool try_uf_move(bool allow_escape=false);
     bool validate_uf()const;

@@ -40,6 +40,7 @@ void ls_solver::initialize(){
     capturing_critical_operations=nullptr;
     clear_prev_data();
     construct_slution_score();
+    if(affine_installed())initialize_affine_values();
     initialize_term_datas();
     initialize_lit_datas();
     initialize_clause_datas();

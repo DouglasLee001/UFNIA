@@ -1,0 +1,55 @@
+# Planning template, not a record of an executed campaign.
+schema_version: '1.0'
+created_on: '2026-10-31'
+output_root: generated-qf-ufnia
+mode: pilot
+target_logic: QF_UFNIA
+portable_smtlib_version: '2.6'
+preferred_families:
+  - aztec_apalache
+  - tensorright_xla
+optional_families:
+  - verieql_sql
+  - certora_tac
+pilot_targets:  # Exploration targets, never fill quotas with duplicates.
+  aztec_apalache: 5
+  tensorright_xla: 5
+  verieql_sql: 3
+  certora_tac: 3
+expansion_target_total: 100
+classifications:
+  - faithful_export
+  - application_derived
+  - source_mutant
+keep_crafted_demos_outside_dataset: true
+capture:
+  raw_interactions: true
+  complete_query_snapshots: true
+  current_assumptions: true
+  original_scope_and_query_order: true
+  native_incremental_when_available: true
+validation:
+  require_parser_and_typecheck: true
+  require_real_uf_and_integer_nonlinearity_for_main_set: true
+  require_provenance: true
+  independent_solvers_desired: 2
+  per_query_timeout_seconds: 60
+  extended_timeout_seconds: 300
+  threads_per_solver: 1
+  memory_limit_mib: 4096  # Adjust to available resources and record actual value.
+  replay_sat_when_supported: true
+  quarantine_disagreements: true
+  preserve_unknown: true
+novelty:
+  official_release: null  # Fill actual release/URL/archive hash.
+  staging_repository: https://github.com/SMT-LIB/benchmark-submission
+  staging_commit: null
+  check_non_incremental: true
+  check_incremental_snapshots: true
+  check_related_application_logics: true
+  methods:
+    - raw_sha256
+    - normalized_ast_sha256
+    - application_identity
+    - similarity_clusters
+  never_claim_semantic_inequivalence_to_all_smtlib: true

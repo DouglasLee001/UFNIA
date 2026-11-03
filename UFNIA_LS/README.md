@@ -1,6 +1,25 @@
+# 当前保留版本：70／191策略
+
+2026-11-03：主目录mature已同步历史最佳POINT-OFF的单自由根affine＋精确footprint cache，移除POINT实验接线与源文件。mature默认开启affine/cache；默认Python后端仍为core，使用最佳策略请显式指定下列参数。
+
+编译：make -C UFNIA_LS mature。node2无系统GMP开发包时，Makefile使用build/ufnia_ls/deps/gmp内的私有静态GMP（保留来源与版权）。
+
+~~~bash
+UFNIA_AFFINE_VIEWS=1 UFNIA_AFFINE_FOOTPRINT_CACHE=1 UFNIA_AFFINE_PROGRESS=1 \
+timeout --signal=KILL 600s ./run.sh INPUT.smt2 \
+  --backend mature --uf-observers --interaction joint --scoring paws \
+  --seed 0 --seconds 600 --preprocess-timeout 600
+~~~
+
+原70／191成绩绑定[原最佳冻结目录](../result/certora2024/snapshots/affine_point_units_v1/snapshot.json)的28cf0f1f…；主目录删除死分支后新构建为a6e8de9a…，已通过原66＋新4共70项回归，并未重新做完整191性能轮。较差实验实现与编译副本已移除，结果和结论文档保留，见[清理记录](../result/cleanup_best_20261103/REPORT.md)。
+
+以下为保留的原有接口、模型语义和历史验收说明。
+
 # SMT(UFNIA) local search
 
 `NIA_LS/` 是参考源码。本目录的求解器使用 GMP 任意精度整数，扩展参考代码中已有的精确整数搜索组件，接受 SMT-LIB 的 QF_UFNIA 输入。Z3 仅用于解析、预处理、模型转换和求值；实际搜索由自写的 GMP 局部搜索核心执行。
+
+算法文档：[当前结构设计](../运行文档/当前结构设计.md)记录已实现和已尝试的机制；[待尝试方向](../运行文档/待尝试方向.md)记录剩余优化与验证工作；[实验说明](../docs/UFNIA_LS实验说明.md)提供编译和复现命令。
 
 ## 使用
 
@@ -35,7 +54,7 @@ make -C UFNIA_LS mature
 
 该模式报告为 `mature_uf_observed` / `mature-mpz-v2`。前端将预处理后的复合实参与结果物化为带精确定义的 Int/Bool 变量，和带版本的 UF 应用表一起交给独立核心。核心按函数和具体实参维护结果桶，对每次试探增量评分，并在返回 SAT 前同时检查原 CNF 和 UF 同余；前端仍验证原查询。
 
-`--interaction none` 关闭 UF 反馈及修复，遇到算术全真但 UF 冲突时返回 `unknown`；`soft` 添加单变量 UF 反馈与实参分离；`joint` 还提供结果组联合修复及有界线性补偿。`--scoring count` 使用固定计数，`paws` 启用子句和 UF 的权重更新。其他默认后端专有策略选项仍会明确拒绝。仅构造和回归测试通过不代表此配置已在真实集合达到400，实验状态见进度记录。
+`--interaction none` 关闭 UF 反馈及修复，遇到算术全真但 UF 冲突时返回 `unknown`；`soft` 添加单变量 UF 反馈与实参分离；`joint` 还提供结果组联合修复及有界线性补偿。`--scoring count` 使用固定计数，`paws` 启用子句和 UF 的权重更新。其他默认后端专有策略选项仍会明确拒绝。正式 v12 已取得 413/572 SAT；后续实验副本的实现、短筛和待验证状态分别记录在上述两份算法文档中，不把构造回归等同于真实性能提升。
 
 UF-only 搜索同样执行超时和停滞重启检查。PAWS 在 UF 平台重加权后重新评选候选，tabu 使用整数与 Boolean 各自的时钟，并允许联合 SAT 或新的原始最优状态通过 aspiration。诊断中的 `current_arithmetic_unsat/current_uf_conflicts` 属于同一当前状态，`best_total_*` 属于同一个历史最优状态；不能将单独的历史算术最小值与末态 UF 值拼接成一个解。
 

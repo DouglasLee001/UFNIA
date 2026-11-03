@@ -1,6 +1,29 @@
+# 最新全量正式结果
+
+2026-11-03，当前清理版a6在node3全572／每例端到端600／实际峰180：419有效SAT、153timeout，独立审计通过。原v12为413，本轮新增9、未复现3、净增6；20240410为68／191，历史该子集最好70仍保留。[本轮报告](../result/best_node3_all_600_20261103_161710_HtUKw3/REPORT.md)。旧reserve48GiB、本轮24GiB，不把总耗时差异单归算法。下文较早“尚未重跑全量”属于此前状态，当前编译和运行命令继续可用。
+
+# 当前最佳实现与运行
+
+2026-11-03：当前工作区已采用20240410-certora最好70／191对应的affine＋精确缓存策略，POINT分支已移除。原最佳冻结版完整保留在result/certora2024/snapshots/affine_point_units_v1；后续较差实验只保留结果、报告及历史manifest，其实现/编译副本已清理。
+
+~~~bash
+cd /home/lbh/smt/ufnia
+make -C UFNIA_LS mature
+UFNIA_AFFINE_VIEWS=1 UFNIA_AFFINE_FOOTPRINT_CACHE=1 UFNIA_AFFINE_PROGRESS=1 \
+timeout --signal=KILL 600s ./run.sh INPUT.smt2 \
+  --backend mature --uf-observers --interaction joint --scoring paws \
+  --seed 0 --seconds 600 --preprocess-timeout 600
+~~~
+
+此命令显式选mature、UF observers、joint、PAWS、seed0，外预算包含预处理、搜索和验证。compile及验证只在node2/node3执行；本次清理没有启动新的真实benchmark轮。主目录新binary a6e8de9a…的验证为70项回归全过，70／191历史成绩仍绑定原28cf0f1f…，不混为新的完整性能成绩。
+
+[清理记录](../result/cleanup_best_20261103/REPORT.md)、[当前结构](../运行文档/当前结构设计.md)。以下保留历史v12的572例验收及复现记录。
+
 # UFNIA_LS：mature＋UF 观察模式实验说明
 
 状态（2026-10-30）：**正式验收通过，572例中413个有效SAT、159个超时**。仅在node3运行，实际并发峰值180，每例端到端600秒；没有新增OOM。以下结果来自单一冻结配置，不合并不同版本或配置的SAT。
+
+已实现结构和历史尝试见[当前结构设计](../运行文档/当前结构设计.md)，剩余工作见[待尝试方向](../运行文档/待尝试方向.md)。本文保留历史正式轮复现。2026-10-31最新授权为node4、node5每台各180并行，500 SAT目标仍未达到；下文node3命令仅用于复现旧v12正式轮，不能替代新目标验收。
 
 ## 架构与参数
 
@@ -55,7 +78,7 @@ timeout --signal=KILL 600s python3 "$ufnia_frozen/UFNIA_LS/run.py" "$ufnia_case"
 
 ## node3 全量复现
 
-登录 node3，在当前正式轮结束后独立复现，使用新的输出目录且不叠加另一轮任务。以下与实际 launcher 参数一致；内存 profile 只控制准入与顺序，不筛选或合并求解结果。未指定 manifest/limit，遍历全 572 例。
+正式轮已结束。需复现时登录 node3，使用新的输出目录，并确保没有另一轮任务占用实验资源。以下与实际 launcher 参数一致；内存 profile 只控制准入与顺序，不筛选或合并求解结果。未指定 manifest/limit，遍历全 572 例。
 
 ```sh
 cd /home/lbh/smt/ufnia

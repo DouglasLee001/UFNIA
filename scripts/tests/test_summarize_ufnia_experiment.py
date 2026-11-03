@@ -1,6 +1,7 @@
 """Independent artifact acceptance must not trust a runner's SAT totals."""
 import csv
 import hashlib
+import importlib.util
 import json
 from pathlib import Path
 import subprocess
@@ -268,6 +269,82 @@ class SummarizerTests(unittest.TestCase):
         self.assertEqual(audit["comparison"]["baseline_expected_host"],"node3")
         self.assertEqual(audit["comparison"]["new_sat"],["family/candidate-only.smt2"])
         self.assertEqual(audit["comparison"]["lost_sat"],["family/baseline-only.smt2"])
+
+    def test_node5_accepts_explicit_audited_mature_evidence(self):
+        run=self.make_run("node5-run",{"family/a.smt2":"sat"})
+        self.mature_evidence(run,observed=True)
+        self.set_host(run,"node5")
+        process,audit,_=self.audit(run,"node5-default-host")
+        self.assertEqual(process.returncode,1)
+        self.assertFalse(audit["eligible_for_acceptance"])
+        process,audit,out=self.audit(run,"node5-explicit-host","--require-host","node5")
+        self.assertEqual(process.returncode,0,process.stdout+process.stderr)
+        self.assertTrue(audit["eligible_for_acceptance"])
+        self.assertEqual(audit["expected_host"],"node5")
+        self.assertEqual(audit["verified_sat"],1)
+        self.assertEqual(audit["backend_configuration"],"mature_uf_observed")
+        with (out/"detailed.csv").open() as stream:detail=next(csv.DictReader(stream))
+        self.assertEqual(detail["benchmark_sha256"],digest(self.inputs/"family/a.smt2"))
+        self.assertEqual(detail["model_sha256"],digest(run/"cases/family/a.smt2.model.smt2"))
+
+    def test_node5_baseline_comparison_keeps_hosts_and_sat_sets_separate(self):
+        baseline=self.make_run("node5-baseline",{"family/common.smt2":"sat","family/lost.smt2":"sat"})
+        candidate=self.make_run("node4-observed",{"family/common.smt2":"sat","family/new.smt2":"sat"})
+        for run,host in ((baseline,"node5"),(candidate,"node4")):
+            self.mature_evidence(run,observed=True)
+            self.set_host(run,host)
+        process,audit,_=self.audit(candidate,"node5-comparison","--require-host","node4",
+                                  "--compare",str(baseline),"--compare-require-host","node5")
+        self.assertEqual(process.returncode,0,process.stdout+process.stderr)
+        self.assertTrue(audit["eligible_for_acceptance"])
+        self.assertTrue(audit["comparison"]["baseline_eligible"])
+        self.assertEqual(audit["verified_sat"],2)
+        self.assertEqual(audit["comparison"]["baseline_expected_host"],"node5")
+        self.assertEqual(audit["comparison"]["new_sat"],["family/new.smt2"])
+        self.assertEqual(audit["comparison"]["lost_sat"],["family/lost.smt2"])
+
+    def test_node5_rejects_mixed_metadata_and_summary_hosts(self):
+        for changed in ("run.json","summary.json"):
+            with self.subTest(changed=changed):
+                run=self.make_run("mixed-"+changed,{"family/a.smt2":"sat"})
+                self.mature_evidence(run,observed=True)
+                self.set_host(run,"node5")
+                path=run/changed;data=json.loads(path.read_text());data["hostname"]="node4"
+                path.write_text(json.dumps(data))
+                process,audit,_=self.audit(run,"mixed-audit-"+changed,"--require-host","node5")
+                self.assertEqual(process.returncode,1)
+                self.assertFalse(audit["eligible_for_acceptance"])
+                self.assertTrue(any(changed.removesuffix(".json")+" must establish node5" in issue for issue in audit["issues"]))
+
+    def test_node5_keeps_benchmark_and_model_checksum_checks(self):
+        for changed in ("source","model"):
+            with self.subTest(changed=changed):
+                run=self.make_run("node5-tampered-"+changed,{"family/a.smt2":"sat"})
+                self.mature_evidence(run,observed=True)
+                self.set_host(run,"node5")
+                target=self.inputs/"family/a.smt2" if changed=="source" else run/"cases/family/a.smt2.model.smt2"
+                target.write_text("changed after validation\n")
+                process,audit,_=self.audit(run,"node5-reject-"+changed,"--require-host","node5")
+                self.assertEqual(process.returncode,1)
+                self.assertFalse(audit["eligible_for_acceptance"])
+                self.assertEqual(audit["verified_sat"],0)
+                self.assertTrue(any("checksum" in issue for issue in audit["issues"]))
+
+    def test_node6_is_rejected_by_api_and_both_cli_host_options(self):
+        run=self.make_run("node6-run",{"family/a.smt2":"sat"})
+        self.set_host(run,"node6")
+        spec=importlib.util.spec_from_file_location("summarizer_host_test",SCRIPT)
+        module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+        with self.assertRaisesRegex(ValueError,"expected host"):
+            module.audit_run(run,"node6")
+        for option in ("--require-host","--compare-require-host"):
+            with self.subTest(option=option):
+                output=self.root/("node6-reject"+option)
+                process=subprocess.run([sys.executable,"-B",str(SCRIPT),str(run),"--output",str(output),
+                                        "--compare",str(run),option,"node6"],capture_output=True,text=True,timeout=15)
+                self.assertEqual(process.returncode,2,process.stdout+process.stderr)
+                self.assertIn("invalid choice",process.stderr)
+                self.assertFalse(output.exists())
 
 
 if __name__ == "__main__":unittest.main()

@@ -1,3 +1,11 @@
+# Current retained mature implementation
+
+2026-11-03: the working tree retains the best-observed single-root affine views and exact footprint cache. Both are enabled by default; UFNIA_AFFINE_VIEWS=0 and UFNIA_AFFINE_FOOTPRINT_CACHE=0 remain explicit diagnostic switches. The unsuccessful POINT branch and its source files have been removed.
+
+The historical 70/191 result belongs to the immutable POINT-OFF snapshot (core28cf0f1f…). This cleaned build (a6e8de9a…) passed 70 regression tests; no new full benchmark score is claimed. Use --backend mature --uf-observers --interaction joint --scoring paws --seed 0 through the Python driver. The Makefile uses the copied static GMP in build/ufnia_ls/deps/gmp when present and otherwise uses system GMP.
+
+The following describes the retained reference-kernel behavior and historical interface.
+
 # Mature GMP backend, first slice
 
 Build with `make -C UFNIA_LS mature`. The executable is

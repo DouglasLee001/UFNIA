@@ -8,11 +8,11 @@ ROOT=Path(__file__).resolve().parents[1]
 BIN=Path(os.environ.get('MATURE_BINARY',str(ROOT/'build/ufnia_ls/ufnia_mature')))
 
 class MatureUfCoreTests(unittest.TestCase):
-    def solve(self,atoms,clauses,table,interaction='joint',scoring='count',extra=()):
+    def solve(self,atoms,clauses,table,interaction='joint',scoring='count',extra=(),env=None):
         with tempfile.TemporaryDirectory() as tmp:
             source=Path(tmp)/'input.native';model=Path(tmp)/'model.json'
             source.write_text('\n'.join([str(len(atoms)+1),*[f'{i} {a}' for i,a in enumerate(atoms,1)],'0',str(len(clauses)),*['( '+' '.join(map(str,c))+' )' for c in clauses],'0',f'UFNIA_OBSERVERS 1 {len(table)}',*table])+'\n')
-            proc=subprocess.run([str(BIN),str(source),'--seconds','0.1','--seed','0','--model-output',str(model),'--uf-observers','--interaction',interaction,'--scoring',scoring,*extra],text=True,capture_output=True)
+            proc=subprocess.run([str(BIN),str(source),'--seconds','0.1','--seed','0','--model-output',str(model),'--uf-observers','--interaction',interaction,'--scoring',scoring,*extra],text=True,capture_output=True,env=env)
             stats=json.loads(proc.stderr.splitlines()[-1]) if proc.stderr.strip() else {}
             return proc,stats,json.loads(model.read_text()) if model.exists() else None
 
@@ -105,7 +105,8 @@ class MatureUfCoreTests(unittest.TestCase):
         self.assertEqual(s['uf_conflicts'],0)
 
     def test_materialized_even_argument_needs_source_and_proxy_joint_move(self):
-        p,s,m=self.solve(['( = ( + proxy ( * -2 source ) ) 0 )','( = zero 0 )','( = r0 0 )','( = r1 1 )'],[[1],[2],[3],[4]],['0 1 Int proxy Int r0','0 1 Int zero Int r1'])
+        # Exercise the legacy compensation route; affine views use root commits.
+        p,s,m=self.solve(['( = ( + proxy ( * -2 source ) ) 0 )','( = zero 0 )','( = r0 0 )','( = r1 1 )'],[[1],[2],[3],[4]],['0 1 Int proxy Int r0','0 1 Int zero Int r1'],env=dict(os.environ,UFNIA_AFFINE_VIEWS='0'))
         self.assertEqual(p.stdout.strip(),'sat',p.stderr)
         self.assertEqual(int(m['proxy']),2*int(m['source']))
         self.assertNotEqual(m['proxy'],'0')
@@ -113,7 +114,8 @@ class MatureUfCoreTests(unittest.TestCase):
 
     def test_materialized_negative_huge_coefficient_is_exact(self):
         coefficient=2**180+2
-        p,s,m=self.solve(['( = ( + proxy ( * '+str(coefficient)+' source ) ) 0 )','( = zero 0 )','( = r0 0 )','( = r1 1 )'],[[1],[2],[3],[4]],['0 1 Int proxy Int r0','0 1 Int zero Int r1'])
+        # Exercise the legacy compensation route; affine views use root commits.
+        p,s,m=self.solve(['( = ( + proxy ( * '+str(coefficient)+' source ) ) 0 )','( = zero 0 )','( = r0 0 )','( = r1 1 )'],[[1],[2],[3],[4]],['0 1 Int proxy Int r0','0 1 Int zero Int r1'],env=dict(os.environ,UFNIA_AFFINE_VIEWS='0'))
         self.assertEqual(p.stdout.strip(),'sat',p.stderr)
         self.assertEqual(int(m['proxy']),-coefficient*int(m['source']))
         self.assertNotEqual(m['proxy'],'0')

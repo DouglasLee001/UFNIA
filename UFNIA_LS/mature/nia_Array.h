@@ -1,6 +1,7 @@
 #ifndef _IDL_ARRAY_H
 #define _IDL_ARRAY_H
 #include <cstring>
+#include <memory>
 #include<random>
 class Array
 {
@@ -22,15 +23,17 @@ public:
     Array(int capacity)
     {
         array_capacity = capacity + 1;
-        array = new int[array_capacity];
-        index_in_array = new int[array_capacity];
+        std::unique_ptr<int[]> first(new int[array_capacity]);
+        std::unique_ptr<int[]> second(new int[array_capacity]);
         //memset(array, 0, sizeof(int) * (array_capacity));
         //memset(index_in_array, 0, sizeof(int) * (array_capacity));
         for (int i = 0; i < array_capacity; i++)
         {
-            array[i] = -1;
-            index_in_array[i] = -1;
+            first[i] = -1;
+            second[i] = -1;
         }
+        array=first.release();
+        index_in_array=second.release();
         array_size = 0;
     }
 
@@ -38,10 +41,12 @@ public:
     {
         array_capacity = prototype.capacity();
         array_size = prototype.size();
-        array = new int[array_capacity];
-        index_in_array = new int[array_capacity];
-        memcpy(array, prototype.array, array_size * sizeof(int));
-        memcpy(index_in_array, prototype.index_in_array, array_size * sizeof(int));
+        std::unique_ptr<int[]> first(new int[array_capacity]);
+        std::unique_ptr<int[]> second(new int[array_capacity]);
+        memcpy(first.get(), prototype.array, array_size * sizeof(int));
+        memcpy(second.get(), prototype.index_in_array, array_size * sizeof(int));
+        array=first.release();
+        index_in_array=second.release();
     }
 
     ~Array()

@@ -1,0 +1,660 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:qf-ufnia-codex-kit:instance:1.0",
+  "title": "QF_UFNIA instance metadata; apply to each JSONL record",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "instance_id",
+    "family",
+    "classification",
+    "dataset_role",
+    "files",
+    "application",
+    "generator",
+    "query",
+    "encoding",
+    "theory_check",
+    "status",
+    "solver_runs",
+    "sat_replay",
+    "unsat_validation",
+    "novelty",
+    "source_ids"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "instance_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "family": {
+      "enum": [
+        "aztec_apalache",
+        "tensorright_xla",
+        "verieql_sql",
+        "certora_tac",
+        "other"
+      ]
+    },
+    "classification": {
+      "enum": [
+        "faithful_export",
+        "application_derived",
+        "source_mutant",
+        "crafted_demo"
+      ]
+    },
+    "dataset_role": {
+      "enum": [
+        "candidate",
+        "main",
+        "control",
+        "excluded",
+        "quarantine"
+      ]
+    },
+    "created_on": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "files": {
+      "type": "object",
+      "required": [
+        "smt2",
+        "sha256",
+        "raw_log",
+        "raw_sha256"
+      ],
+      "properties": {
+        "smt2": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "sha256": {
+          "$ref": "#/$defs/nullableSha256"
+        },
+        "raw_log": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "raw_sha256": {
+          "$ref": "#/$defs/nullableSha256"
+        }
+      }
+    },
+    "application": {
+      "type": "object",
+      "required": [
+        "repository",
+        "source_commit",
+        "source_files",
+        "task_id",
+        "property",
+        "query_kind",
+        "scope_description",
+        "bounds",
+        "license"
+      ],
+      "properties": {
+        "repository": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "source_commit": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"
+        },
+        "source_files": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "task_id": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "property": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "query_kind": {
+          "enum": [
+            "counterexample",
+            "reachability",
+            "witness",
+            "feasibility",
+            "other"
+          ]
+        },
+        "scope_description": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "bounds": {
+          "type": "object"
+        },
+        "input_hash": {
+          "$ref": "#/$defs/nullableSha256"
+        },
+        "license": {
+          "$ref": "#/$defs/nullableString"
+        }
+      }
+    },
+    "generator": {
+      "type": "object",
+      "required": [
+        "name",
+        "commit",
+        "tool_versions",
+        "command_argv"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "repository": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "commit": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "tool_versions": {
+          "type": "object"
+        },
+        "command_argv": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "export_patch": {
+          "$ref": "#/$defs/nullableString"
+        }
+      }
+    },
+    "query": {
+      "type": "object",
+      "required": [
+        "mode",
+        "query_index",
+        "assumptions",
+        "active_assertions_hash",
+        "assumptions_hash"
+      ],
+      "properties": {
+        "mode": {
+          "enum": [
+            "non_incremental_snapshot",
+            "native_incremental_session",
+            "derived_incremental_session"
+          ]
+        },
+        "query_index": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "assumptions": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "active_assertions_hash": {
+          "$ref": "#/$defs/nullableSha256"
+        },
+        "assumptions_hash": {
+          "$ref": "#/$defs/nullableSha256"
+        },
+        "per_query_records": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "encoding": {
+      "type": "object",
+      "required": [
+        "smtlib_version",
+        "declared_logic",
+        "transformation_relation",
+        "transformations",
+        "semantic_limitations"
+      ],
+      "properties": {
+        "smtlib_version": {
+          "type": "string"
+        },
+        "declared_logic": {
+          "type": "string"
+        },
+        "transformation_relation": {
+          "enum": [
+            "identical",
+            "equivalent",
+            "equisatisfiable",
+            "overapproximation",
+            "underapproximation",
+            "unknown"
+          ]
+        },
+        "transformations": {
+          "type": "array"
+        },
+        "semantic_limitations": {
+          "$ref": "#/$defs/stringArray"
+        }
+      }
+    },
+    "theory_check": {
+      "type": "object",
+      "required": [
+        "result",
+        "actual_sorts",
+        "extra_theories",
+        "uf_meaning",
+        "integer_nonlinearity_meaning",
+        "uf_interaction"
+      ],
+      "properties": {
+        "result": {
+          "enum": [
+            "pass",
+            "fail",
+            "not_run"
+          ]
+        },
+        "actual_sorts": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "extra_theories": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "uf_meaning": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "integer_nonlinearity_meaning": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "uf_interaction": {
+          "enum": [
+            "observed_shared_integer_terms",
+            "weak_or_eliminated",
+            "not_assessed",
+            "other"
+          ]
+        },
+        "features_before": {
+          "type": "object"
+        },
+        "features_after": {
+          "type": "object"
+        }
+      }
+    },
+    "status": {
+      "enum": [
+        "sat",
+        "unsat",
+        "unknown",
+        "mixed"
+      ]
+    },
+    "solver_runs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/solverRun"
+      }
+    },
+    "sat_replay": {
+      "type": "object",
+      "required": [
+        "result"
+      ],
+      "properties": {
+        "result": {
+          "enum": [
+            "pass",
+            "fail",
+            "not_run",
+            "not_applicable"
+          ]
+        }
+      }
+    },
+    "unsat_validation": {
+      "type": "object",
+      "required": [
+        "method"
+      ],
+      "properties": {
+        "method": {
+          "enum": [
+            "checked_proof",
+            "cross_solver_agreement",
+            "single_solver_only",
+            "not_run",
+            "not_applicable"
+          ]
+        }
+      }
+    },
+    "novelty": {
+      "type": "object",
+      "required": [
+        "status",
+        "compared_snapshots",
+        "methods",
+        "duplicates",
+        "scope_limitations"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "pending",
+            "partial",
+            "no_duplicate_found_in_checked_scope",
+            "duplicate",
+            "unresolved"
+          ]
+        },
+        "compared_snapshots": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "methods": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "duplicates": {
+          "type": "array"
+        },
+        "normalized_ast_sha256": {
+          "$ref": "#/$defs/nullableSha256"
+        },
+        "scope_limitations": {
+          "$ref": "#/$defs/stringArray"
+        }
+      }
+    },
+    "paired_variant_group": {
+      "$ref": "#/$defs/nullableString"
+    },
+    "split_group": {
+      "$ref": "#/$defs/nullableString"
+    },
+    "source_ids": {
+      "$ref": "#/$defs/stringArray"
+    },
+    "notes": {
+      "$ref": "#/$defs/stringArray"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "dataset_role": {
+            "const": "main"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "instance_id": {
+            "not": {
+              "const": "TEMPLATE_NOT_AN_INSTANCE"
+            }
+          },
+          "classification": {
+            "not": {
+              "const": "crafted_demo"
+            }
+          },
+          "files": {
+            "properties": {
+              "smt2": {
+                "type": "string",
+                "minLength": 1
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "raw_log": {
+                "type": "string",
+                "minLength": 1
+              },
+              "raw_sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              }
+            }
+          },
+          "application": {
+            "properties": {
+              "repository": {
+                "type": "string",
+                "minLength": 1
+              },
+              "source_commit": {
+                "type": "string",
+                "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"
+              },
+              "task_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "property": {
+                "type": "string",
+                "minLength": 1
+              },
+              "scope_description": {
+                "type": "string",
+                "minLength": 1
+              },
+              "license": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "generator": {
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "command_argv": {
+                "minItems": 1
+              }
+            }
+          },
+          "encoding": {
+            "properties": {
+              "declared_logic": {
+                "const": "QF_UFNIA"
+              },
+              "transformation_relation": {
+                "enum": [
+                  "identical",
+                  "equivalent",
+                  "equisatisfiable"
+                ]
+              }
+            }
+          },
+          "theory_check": {
+            "properties": {
+              "result": {
+                "const": "pass"
+              },
+              "extra_theories": {
+                "maxItems": 0
+              },
+              "uf_meaning": {
+                "type": "string",
+                "minLength": 1
+              },
+              "integer_nonlinearity_meaning": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "solver_runs": {
+            "minItems": 1
+          },
+          "novelty": {
+            "properties": {
+              "status": {
+                "const": "no_duplicate_found_in_checked_scope"
+              },
+              "compared_snapshots": {
+                "minItems": 1
+              },
+              "methods": {
+                "minItems": 3
+              },
+              "duplicates": {
+                "maxItems": 0
+              }
+            }
+          },
+          "source_ids": {
+            "minItems": 1
+          },
+          "split_group": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "split_group"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "query": {
+            "properties": {
+              "mode": {
+                "const": "non_incremental_snapshot"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "status": {
+            "enum": [
+              "sat",
+              "unsat",
+              "unknown"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "query": {
+            "properties": {
+              "mode": {
+                "enum": [
+                  "native_incremental_session",
+                  "derived_incremental_session"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "query": {
+            "required": [
+              "per_query_records"
+            ],
+            "properties": {
+              "per_query_records": {
+                "minItems": 1
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "nullableString": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "nullableSha256": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "stringArray": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "solverRun": {
+      "type": "object",
+      "required": [
+        "solver",
+        "version",
+        "command_argv",
+        "result",
+        "timeout_seconds",
+        "evidence_path"
+      ],
+      "properties": {
+        "solver": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "command_argv": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "result": {
+          "enum": [
+            "sat",
+            "unsat",
+            "unknown",
+            "timeout",
+            "error",
+            "unsupported",
+            "not_run",
+            "mixed"
+          ]
+        },
+        "timeout_seconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "evidence_path": {
+          "type": "string"
+        },
+        "per_query_results": {
+          "$ref": "#/$defs/stringArray"
+        }
+      }
+    }
+  }
+}

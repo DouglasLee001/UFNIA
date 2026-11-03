@@ -15,9 +15,25 @@ int main(int argc,char** argv){
    else if(option=="--model-output")model=value;else throw std::runtime_error("unknown option: "+option);
   }
   if(!uf&&(interaction_set||scoring_set))throw std::runtime_error("interaction/scoring require --uf-observers");
-  nia::NativeInput source;source.read(input,uf);nia::ls_solver solver(seed);solver.uf_enabled=uf;solver.uf_interaction=interaction;solver.uf_scoring=scoring;source.install(solver);solver._cutoff=seconds;
-  if(parse){std::cout<<"{\"status\":\"parsed\",\"backend\":\"mature_mpz\",\"backend_version\":\""<<version<<"\",\"atoms\":"<<source.atoms.size()-1<<",\"vars\":"<<solver._num_vars<<",\"clauses\":"<<solver._num_clauses<<",\"max_numeral_bits\":"<<source.max_numeral_bits<<",\"uf_observers\":"<<(uf?"true":"false")<<",\"uf_applications\":"<<solver.uf_applications.size()<<"}\n";return 0;}
+  bool affine_requested=true,cache_requested=true,progress_requested=false;
+  if(const char* flag=std::getenv("UFNIA_AFFINE_VIEWS"))affine_requested=std::string(flag)!="0";
+  if(const char* flag=std::getenv("UFNIA_AFFINE_FOOTPRINT_CACHE"))cache_requested=std::string(flag)=="1";
+  if(const char* flag=std::getenv("UFNIA_AFFINE_PROGRESS"))progress_requested=std::string(flag)=="1";
+  nia::NativeInput source;source.read(input,uf);
+  auto configure=[&](nia::ls_solver& solver,bool progress){
+   solver.uf_enabled=uf;solver.uf_interaction=interaction;solver.uf_scoring=scoring;
+   solver.affine_enabled=affine_requested;solver.affine_footprint_cache_enabled=cache_requested;
+   if(progress_requested){
+    solver.affine_progress_enabled=progress;size_t slash=input.find_last_of('/');
+    const std::string directory=slash==std::string::npos?"":input.substr(0,slash+1),filename=slash==std::string::npos?input:input.substr(slash+1);
+    solver.affine_progress_path=directory+"affine-"+filename+".report.json";
+   }
+  };
+  auto run_loaded=[&](nia::ls_solver& solver)->int{
+  solver._cutoff=seconds;
+  if(parse){std::cout<<"{\"status\":\"parsed\",\"backend\":\"mature_mpz\",\"backend_version\":\""<<version<<"\",\"atoms\":"<<source.atoms.size()-1<<",\"vars\":"<<solver._num_vars<<",\"clauses\":"<<solver._num_clauses<<",\"max_numeral_bits\":"<<source.max_numeral_bits<<",\"uf_observers\":"<<(uf?"true":"false")<<",\"uf_applications\":"<<solver.uf_applications.size()<<",\"affine_views_enabled\":"<<(solver.affine_enabled?"true":"false")<<solver.affine_footprint_cache_report()<<",\"affine_components\":"<<solver.affine_views.size()<<",\"affine_derived\":"<<solver.affine_derived<<"}\n";return 0;}
   bool found=seconds>0&&solver.local_search();bool valid=found&&source.validate(solver);
+  if(solver.affine_progress_enabled)solver.maybe_write_affine_progress(solver.initialization_round?solver.TimeElapsed():0,true);
   if(valid&&!model.empty()){std::ofstream file(model);if(!file)throw std::runtime_error("cannot write model");file<<"{";bool first=true;for(size_t i=0;i<solver._num_vars;++i){if(!first)file<<",";first=false;file<<nia::json_string(solver._vars[i].var_name)<<":";if(solver._vars[i].is_nia)file<<nia::json_string(solver._solution[i].get_str());else file<<(solver._solution[i]>0?"true":"false");}for(const auto& [name,value]:source.restored){if(solver.name2var.count(name))continue;if(!first)file<<",";first=false;file<<nia::json_string(name)<<":"<<nia::json_string(value.get_str());}file<<"}\n";if(!file)throw std::runtime_error("model write failed");}
   std::cout<<(valid?"sat":"unknown")<<"\n";
   std::cerr<<"{\"status\":\""<<(valid?"sat":"unknown")<<"\",\"backend\":\"mature_mpz\",\"backend_version\":\""<<version<<"\",\"validated\":"<<(valid?"true":"false")<<",\"steps\":"<<solver._step<<",\"vars\":"<<solver._num_vars<<",\"int_vars\":"<<solver._num_nia_vars<<",\"bool_vars\":"<<solver.bool_var_vec.size()<<",\"clauses\":"<<solver._num_clauses<<",\"best_arithmetic_unsat\":"<<(solver.best_arithmetic_unsat==UINT64_MAX?uint64_t(solver.best_found_cost):solver.best_arithmetic_unsat)<<",\"bool_phase_steps\":"<<solver.bool_phase_steps<<",\"int_phase_steps\":"<<solver.int_phase_steps<<",\"phase_switches\":"<<solver.phase_switches<<",\"weight_updates\":"<<solver.weight_updates<<",\"tabu_rejections\":"<<solver.tabu_rejections<<",\"candidate_cache_hits\":"<<solver.candidate_cache_hits<<",\"candidate_cache_rebuilds\":"<<solver.candidate_cache_rebuilds<<",\"auxiliary_solvers\":\"disabled\",\"uf_observers\":"<<(uf?"true":"false")
@@ -30,6 +46,13 @@ int main(int argc,char** argv){
            <<",\"uf_search_policy\":"<<nia::json_string(uf?"adaptive_tabu_v12":"legacy_v1")
            <<",\"uf_only_iterations\":"<<solver.uf_only_iterations<<",\"uf_only_weight_updates\":"<<solver.uf_only_weight_updates<<",\"uf_weight\":"<<solver.uf_weight
            <<",\"uf_tabu_rejections\":"<<solver.uf_tabu_rejections<<",\"uf_aspirations\":"<<solver.uf_aspirations<<",\"uf_tabu_overrides\":"<<solver.uf_tabu_overrides<<",\"uf_tabu_waits\":"<<solver.uf_tabu_waits
+           <<",\"affine_views_enabled\":"<<(solver.affine_enabled?"true":"false")<<",\"affine_views_policy\":"<<nia::json_string(solver.affine_enabled?"persistent_native_tree_v1":"v12_scalar")
+           <<solver.affine_footprint_cache_report()
+           <<",\"affine_applicable\":"<<(solver.affine_installed()?"true":"false")<<",\"affine_components\":"<<solver.affine_views.size()<<",\"affine_derived\":"<<solver.affine_derived
+           <<",\"affine_build_components\":"<<solver.affine_build_components<<",\"affine_skip_math\":"<<solver.affine_skip_math<<",\"affine_skip_size\":"<<solver.affine_skip_size<<",\"affine_skip_no_root\":"<<solver.affine_skip_no_root<<",\"affine_skip_domain\":"<<solver.affine_skip_domain<<",\"affine_skip_bits\":"<<solver.affine_skip_bits
+           <<",\"affine_skip_footprint\":"<<solver.affine_skip_footprint<<",\"affine_skip_numeric\":"<<solver.affine_skip_numeric<<",\"affine_proposals\":"<<solver.affine_proposals<<",\"affine_scores\":"<<solver.affine_scores<<",\"affine_commits\":"<<solver.affine_commits<<",\"affine_rejections\":"<<solver.affine_rejections
+           <<",\"affine_poly_unsupported\":"<<solver.affine_poly_unsupported<<",\"affine_poly_budget\":"<<solver.affine_poly_budget<<",\"affine_build_nanoseconds\":"<<solver.affine_build_ns<<",\"affine_generate_nanoseconds\":"<<solver.affine_generate_ns<<",\"affine_score_nanoseconds\":"<<solver.affine_score_ns<<",\"affine_candidate_nanoseconds\":"<<solver.affine_candidate_ns<<",\"affine_commit_nanoseconds\":"<<solver.affine_commit_ns
+           <<",\"affine_progress_enabled\":"<<(solver.affine_progress_enabled?"true":"false")
            <<",\"search_restarts\":"<<(solver.initialization_round?solver.initialization_round-1:0)
            <<",\"current_arithmetic_unsat\":"<<(solver.initialization_round?std::to_string(solver.unsat_clauses->size()):"null")
            <<",\"current_uf_conflicts\":"<<(solver.initialization_round?std::to_string(solver.uf_conflicts):"null")
@@ -37,5 +60,8 @@ int main(int argc,char** argv){
            <<",\"best_total_arithmetic_unsat\":"<<(solver.best_total_arithmetic_unsat==UINT64_MAX?"null":std::to_string(solver.best_total_arithmetic_unsat))
            <<",\"best_total_uf_conflicts\":"<<(solver.best_total_uf_conflicts==UINT64_MAX?"null":std::to_string(solver.best_total_uf_conflicts))<<"}\n";
   return 0;
+  };
+  nia::ls_solver solver(seed);configure(solver,progress_requested);source.install(solver);
+  return run_loaded(solver);
  }catch(const std::exception& e){std::cerr<<"{\"status\":\"error\",\"backend\":\"mature_mpz\",\"backend_version\":\""<<version<<"\",\"error\":"<<nia::json_string(e.what())<<"}\n";return 2;}
 }

@@ -41,6 +41,7 @@ void ls_solver::no_operation_random_walk(){
         return;
     }//boolean lit
     if(l->var_lit_terms.empty())return;
+    if(affine_installed() && affine_literal[std::abs(lit_idx)]){affine_no_operation_random_walk(lit_idx);return;}
     var_lit_term *vlt;//nia lit
     Int coffs[2]={0,0};//the coff = sum(term_coff*vlt_coff) ( 1 * x1*x2 ) + ( -1 * x1 ) + ( -1 * x3 ) for x1 the coff=(1*x2)+(-1)
     uint64_t var_idx_curr=l->var_lit_terms[0].var_idx;//the current var idx of var_lit_term
@@ -102,7 +103,7 @@ void ls_solver::random_walk(){
                 int idx=operation_idx<=45?i:int(mt()%operation_idx);
                 int var=operation_var_idx_vec[idx];auto delta=operation_change_value_vec[idx];
                 uint64_t broken=0;
-                const MoveScore score=critical_score(var,delta,collect_break?&broken:nullptr);
+                const MoveScore score=affine_installed()?evaluate_search_move(var,delta,collect_break?&broken:nullptr):critical_score(var,delta,collect_break?&broken:nullptr);
                 choices.push_back({var,delta,score,std::max(last_move[2*var],last_move[2*var+1]),broken});
             }
             std::stable_sort(choices.begin(),choices.end(),[](const Choice& a,const Choice& b){
@@ -347,6 +348,7 @@ void ls_solver::add_operation_from_false_lit(bool use_tabu, int lit_idx, int &op
 }
 
 void ls_solver::generate_operations_from_false_lit(bool use_tabu,int lit_idx,int& operation_idx){
+    if(affine_installed() && affine_literal[std::abs(lit_idx)]){generate_affine_operations(use_tabu,lit_idx,operation_idx);return;}
     Int total_term_value=0;
     lit *l=&(_lits[std::abs(lit_idx)]);
     if(l->var_lit_terms.empty())return;
@@ -432,8 +434,9 @@ void ls_solver::select_best_operation_from_vec(int operation_idx,MoveScore &best
         }
         future_abs_value=abs_128(_solution[operation_var_idx]+operation_change_value);
         if(use_distance_scoring())distance_score_threshold=best_score;
-        score=critical_score(operation_var_idx,operation_change_value);
-        if(uf_enabled && uf_interaction!="none")score+=uf_single_gain(operation_var_idx,Int(_solution[operation_var_idx]+operation_change_value));
+        if(affine_installed())score=evaluate_search_move(operation_var_idx,operation_change_value);
+        else{score=critical_score(operation_var_idx,operation_change_value);
+        if(uf_enabled && uf_interaction!="none")score+=uf_single_gain(operation_var_idx,Int(_solution[operation_var_idx]+operation_change_value));}
         int opposite_direction=(operation_change_value>0)?1:0;//if the change value is >0, then means it is moving forward, the opposite direction is 1(backward)
         uint64_t last_move_step=last_move[2*operation_var_idx+opposite_direction];
         const bool age_tie=prefer_age?
@@ -507,25 +510,29 @@ void ls_solver::modify_frequency_in_unsat_clauses(){
 }
 //make move
 void ls_solver::critical_move(uint64_t var_idx, Int change_value){
-    if(config.strategy==SlsStrategy::corebip && core_locked.size()>var_idx && core_locked[var_idx])return;
-    if(config.distance_scoring)++distance_current_generation;
+    if(affine_installed() && _vars[var_idx].is_nia && affine_component[var_idx]>=0){commit_affine_patch({{var_idx,Int(_solution[var_idx]+change_value)}});return;}
+    raw_critical_move(var_idx,change_value,true);
+}
+void ls_solver::raw_critical_move(size_t var_idx,const Int& change_value,bool track_search){
+    if(track_search && config.strategy==SlsStrategy::corebip && core_locked.size()>var_idx && core_locked[var_idx])return;
+    if(track_search && config.distance_scoring)++distance_current_generation;
     int direction=(change_value>0)?0:1;
     if(_vars[var_idx].is_nia){
-        last_op_value=change_value;
-        last_op_var=var_idx;
+        if(track_search){last_op_value=change_value;last_op_var=var_idx;}
         if(!_vars[var_idx].var_lit_terms.empty())move_update(var_idx, change_value);
         _solution[var_idx]+=change_value;
     }
     else{
-        last_op_var=UINT64_MAX;//if last operation is boolean operation, the var should no longer be banned
+        if(track_search)last_op_var=UINT64_MAX;// Only a canonical search event owns reversal history.
         MoveScore origin_score=_vars[var_idx].score;
         if(!_vars[var_idx].literal_idxs.empty())move_update(var_idx);
         _solution[var_idx]*=-1;
         _vars[var_idx].score=-origin_score;
     }
     if(uf_enabled)commit_uf_variable(var_idx);
-    if(_record_frequency){modify_frequency_in_unsat_clauses();}
-    //step
+    if(track_search && _record_frequency){modify_frequency_in_unsat_clauses();}
+    // Only canonical coordinates consume clocks and MT.
+    if(track_search){
     if(_vars[var_idx].is_nia){
         last_move[2*var_idx+direction]=_step;
         tabulist[var_idx*2+(direction+1)%2]=_step+3+mt()%10;
@@ -534,6 +541,7 @@ void ls_solver::critical_move(uint64_t var_idx, Int change_value){
         last_move[2*var_idx]=_outer_layer_step;
         tabulist[2*var_idx]=_outer_layer_step+1+mt()%3;
         _outer_layer_step++;
+    }
     }
 }
 //transfer the ">" to "<="
@@ -581,6 +589,12 @@ Int ls_solver::devide(Int a, Int b){
     return (a<0)==(b<0)?up_round:Int(-up_round);
 }
 void ls_solver::insert_operation(uint64_t var_idx,Int change_value,int &operation_idx,bool use_tabu){
+    if(affine_installed() && affine_component[var_idx]>=0){
+        const auto& view=affine_views[affine_component[var_idx]];
+        Int target=_solution[var_idx]+change_value;auto root_target=affine::inverse(affine_member[var_idx],target);
+        if(!root_target||!affine::contains(view.domain,*root_target)){++affine_rejections;return;}
+        var_idx=view.root;change_value=*root_target-_solution[var_idx];
+    }
     if(config.strategy==SlsStrategy::corebip && core_locked.size()>var_idx && core_locked[var_idx])return;
     // Cache before all dynamic filters; a temporarily forbidden move must survive.
     if (capturing_critical_operations) {
@@ -660,6 +674,11 @@ void ls_solver::initialize_scoring_index(){
 
 // Evaluate only clauses reached by literals whose truth value changes.
 MoveScore ls_solver::critical_score(uint64_t var_idx, Int change_value,uint64_t* break_cost){
+    if(affine_installed() && affine_component[var_idx]>=0){
+        latest_distance_gain=0;MoveScore uf_part=0;
+        MoveScore score=score_uf_patch({{var_idx,Int(_solution[var_idx]+change_value)}},nullptr,nullptr,&uf_part,break_cost);
+        return score-uf_part;
+    }
     if(break_cost)*break_cost=0;
     latest_distance_gain=0;
     const bool geometric=use_distance_scoring() && _step>1000;
@@ -1135,7 +1154,9 @@ bool ls_solver::local_search(){
             up_bool_vars();
             return true;}
         if(_step%1000==0){
-            if(TimeElapsed()>_cutoff)break;
+            const double elapsed=TimeElapsed();
+            if(affine_progress_enabled)maybe_write_affine_progress(elapsed,false);
+            if(elapsed>_cutoff)break;
         }
 
         if(uint64_t(no_improve_cnt)>restart_stall_limit){

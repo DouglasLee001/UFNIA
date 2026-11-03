@@ -1,0 +1,52 @@
+{
+  "schema_version": "1.0",
+  "instance_id": "TEMPLATE_NOT_AN_INSTANCE",
+  "family": "aztec_apalache",
+  "classification": "faithful_export",
+  "dataset_role": "candidate",
+  "created_on": null,
+  "files": {"smt2": null, "sha256": null, "raw_log": null, "raw_sha256": null},
+  "application": {
+    "repository": null, "source_commit": null, "source_files": [],
+    "task_id": null, "property": null, "query_kind": "counterexample",
+    "scope_description": null, "bounds": {}, "input_hash": null,
+    "license": null
+  },
+  "generator": {
+    "name": null, "repository": null, "commit": null,
+    "tool_versions": {}, "command_argv": [], "working_directory": null,
+    "export_patch": null
+  },
+  "query": {
+    "mode": "non_incremental_snapshot", "query_index": null,
+    "original_command": null, "active_assertions_hash": null,
+    "assumptions": [], "assumptions_hash": null, "native_session_id": null,
+    "statement_polarity": null
+  },
+  "encoding": {
+    "smtlib_version": "2.6", "declared_logic": "QF_UFNIA",
+    "transformation_relation": "unknown", "transformations": [],
+    "relation_evidence": null, "semantic_limitations": []
+  },
+  "theory_check": {
+    "result": "not_run", "checker": null, "version": null,
+    "actual_sorts": [], "extra_theories": [],
+    "uf_meaning": null, "integer_nonlinearity_meaning": null,
+    "uf_interaction": "not_assessed", "features_before": {}, "features_after": {},
+    "evidence_path": null
+  },
+  "status": "unknown",
+  "solver_runs": [],
+  "sat_replay": {"result": "not_run", "level": null, "evidence_path": null},
+  "unsat_validation": {"method": "not_run", "evidence_path": null},
+  "novelty": {
+    "status": "pending", "compared_snapshots": [], "methods": [],
+    "normalized_ast_sha256": null, "normalizer_version": null,
+    "application_identity": null, "duplicates": [], "similarity_cluster": null,
+    "scope_limitations": [], "evidence_path": null
+  },
+  "paired_variant_group": null,
+  "split_group": null,
+  "source_ids": [],
+  "notes": ["Planning template only. Replace nulls with actual evidence where required; never count this file as an instance."]
+}

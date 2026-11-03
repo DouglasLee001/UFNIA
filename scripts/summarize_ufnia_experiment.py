@@ -247,8 +247,8 @@ def verify_sat(run, source, benchmark, row, binding=None):
 
 
 def audit_run(directory, require_host="node3"):
-    if require_host not in ("node3", "node4"):
-        raise ValueError("expected host must be node3 or node4")
+    if require_host not in ("node3", "node4", "node5"):
+        raise ValueError("expected host must be node3, node4 or node5")
     run = directory.resolve(strict=True)
     metadata = read_json(contained_file(run, "run.json"))
     summary = read_json(contained_file(run, "summary.json"))
@@ -380,8 +380,8 @@ def main(argv=None):
     parser.add_argument("run",type=Path)
     parser.add_argument("--output",type=Path,help="new directory; existing directories are never overwritten")
     parser.add_argument("--compare",type=Path,help="baseline run audited with the same independent checks")
-    parser.add_argument("--require-host",choices=("node3","node4"),default="node3",help="required candidate hostname (default: node3)")
-    parser.add_argument("--compare-require-host",choices=("node3","node4"),help="required baseline hostname; defaults to --require-host")
+    parser.add_argument("--require-host",choices=("node3","node4","node5"),default="node3",help="required candidate hostname (default: node3)")
+    parser.add_argument("--compare-require-host",choices=("node3","node4","node5"),help="required baseline hostname; defaults to --require-host")
     args=parser.parse_args(argv)
     try:
         if args.compare_require_host and not args.compare:
