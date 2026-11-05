@@ -1,0 +1,2011 @@
+[
+  {
+    "schema": {
+      "ORDERS": {
+        "ORDER_ID": "INT",
+        "QUANTITY": "INT",
+        "UNIT_PRICE": "INT"
+      }
+    },
+    "classification": "application_derived",
+    "source_files": [
+      "environment.py",
+      "applications/03_VeriEQL_SQL.md"
+    ],
+    "nonlinearity_meaning": "Orders.quantity times Orders.unit_price: integer-cent order line amount",
+    "task_id": "orders_amount_commute",
+    "sql": [
+      "SELECT ORDER_ID, QUANTITY * UNIT_PRICE AS AMOUNT FROM ORDERS WHERE QUANTITY > 0",
+      "SELECT ORDER_ID, UNIT_PRICE * QUANTITY AS AMOUNT FROM ORDERS WHERE QUANTITY > 0"
+    ],
+    "property": "Commuting quantity and integer-cent price preserves order amounts"
+  },
+  {
+    "schema": {
+      "ORDERS": {
+        "ORDER_ID": "INT",
+        "QUANTITY": "INT",
+        "UNIT_PRICE": "INT"
+      }
+    },
+    "classification": "application_derived",
+    "source_files": [
+      "environment.py",
+      "applications/03_VeriEQL_SQL.md"
+    ],
+    "nonlinearity_meaning": "Orders.quantity times Orders.unit_price: integer-cent order line amount",
+    "task_id": "orders_amount_overcharge",
+    "sql": [
+      "SELECT ORDER_ID, QUANTITY * UNIT_PRICE AS AMOUNT FROM ORDERS WHERE QUANTITY > 0",
+      "SELECT ORDER_ID, QUANTITY * (UNIT_PRICE + 1) AS AMOUNT FROM ORDERS WHERE QUANTITY > 0"
+    ],
+    "property": "Detect a one-cent per-unit overcharge in order amounts"
+  },
+  {
+    "task_id": "calcite_149",
+    "schema": {
+      "EMP": {
+        "EMPNO": "INT",
+        "DEPTNO": "INT",
+        "ENAME": "VARCHAR",
+        "JOB": "VARCHAR",
+        "MGR": "INT",
+        "HIREDATE": "DATE",
+        "SAL": "INT",
+        "COMM": "INT",
+        "SLACKER": "BOOLEAN"
+      },
+      "DEPT": {
+        "DEPTNO": "INT",
+        "NAME": "VARCHAR"
+      },
+      "BONUS": {
+        "ENAME": "VARCHAR",
+        "JOB": "VARCHAR",
+        "SAL": "INT",
+        "COMM": "INT"
+      },
+      "EMPNULLABLES": {
+        "EMPNO": "INT",
+        "DEPTNO": "INT",
+        "ENAME": "VARCHAR",
+        "JOB": "VARCHAR",
+        "MGR": "INT",
+        "HIREDATE": "DATE",
+        "SAL": "INT",
+        "COMM": "INT",
+        "SLACKER": "BOOLEAN"
+      },
+      "EMPNULLABLES_20": {
+        "EMPNO": "INT",
+        "DEPTNO": "INT",
+        "ENAME": "VARCHAR",
+        "JOB": "VARCHAR",
+        "MGR": "INT",
+        "HIREDATE": "DATE",
+        "SAL": "INT",
+        "COMM": "INT",
+        "SLACKER": "BOOLEAN"
+      },
+      "EMP_B": {
+        "EMPNO": "INT",
+        "DEPTNO": "INT",
+        "ENAME": "VARCHAR",
+        "JOB": "VARCHAR",
+        "MGR": "INT",
+        "HIREDATE": "DATE",
+        "SAL": "INT",
+        "COMM": "INT",
+        "SLACKER": "BOOLEAN",
+        "BIRTHDATE": "DATE"
+      }
+    },
+    "sql": [
+      "SELECT COUNT(*) FROM EMP INNER JOIN DEPT ON EMP.JOB = DEPT.NAME",
+      "SELECT COALESCE(SUM(t1.EXPR$0 * t2.EXPR$0), 0) FROM (SELECT JOB, COUNT(*) AS EXPR$0 FROM EMP GROUP BY JOB) AS t1 INNER JOIN (SELECT NAME, COUNT(*) AS EXPR$0 FROM DEPT GROUP BY NAME) AS t2 ON t1.JOB = t2.NAME"
+    ],
+    "constraints": [
+      {
+        "not_null": {
+          "value": "EMP__EMPNO"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP__ENAME"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP__JOB"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP__HIREDATE"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP__SAL"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP__COMM"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP__DEPTNO"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP__SLACKER"
+        }
+      },
+      {
+        "not_null": {
+          "value": "DEPT__DEPTNO"
+        }
+      },
+      {
+        "not_null": {
+          "value": "DEPT__NAME"
+        }
+      },
+      {
+        "not_null": {
+          "value": "BONUS__ENAME"
+        }
+      },
+      {
+        "not_null": {
+          "value": "BONUS__JOB"
+        }
+      },
+      {
+        "not_null": {
+          "value": "BONUS__SAL"
+        }
+      },
+      {
+        "not_null": {
+          "value": "BONUS__COMM"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__EMPNO"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__ENAME"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__JOB"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__HIREDATE"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__SAL"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__COMM"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__DEPTNO"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__SLACKER"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__BIRTHDATE"
+        }
+      },
+      {
+        "primary": [
+          {
+            "value": "EMP__EMPNO"
+          }
+        ]
+      },
+      {
+        "foreign": [
+          {
+            "value": "EMP__DEPTNO"
+          },
+          {
+            "value": "DEPT__DEPTNO"
+          }
+        ]
+      },
+      {
+        "primary": [
+          {
+            "value": "DEPT__DEPTNO"
+          }
+        ]
+      },
+      {
+        "primary": [
+          {
+            "value": "EMPNULLABLES__EMPNO"
+          }
+        ]
+      },
+      {
+        "foreign": [
+          {
+            "value": "EMPNULLABLES__DEPTNO"
+          },
+          {
+            "value": "DEPT__DEPTNO"
+          }
+        ]
+      },
+      {
+        "primary": [
+          {
+            "value": "EMPNULLABLES_20__EMPNO"
+          }
+        ]
+      },
+      {
+        "foreign": [
+          {
+            "value": "EMPNULLABLES_20__DEPTNO"
+          },
+          {
+            "value": "DEPT__DEPTNO"
+          }
+        ]
+      },
+      {
+        "primary": [
+          {
+            "value": "EMP_B__EMPNO"
+          }
+        ]
+      },
+      {
+        "foreign": [
+          {
+            "value": "EMP_B__DEPTNO"
+          },
+          {
+            "value": "DEPT__DEPTNO"
+          }
+        ]
+      }
+    ],
+    "classification": "faithful_export",
+    "property": "Original Calcite query-rewrite result-bag equality (pair 149)",
+    "nonlinearity_meaning": "Join multiplicity counts times salary/aggregate totals in the original Calcite optimizer rewrite",
+    "source_files": [
+      "benchmarks/calcite/calcite2.jsonlines"
+    ],
+    "source_ids": [
+      "VeriEQL-v1.0",
+      "Calcite-397/149"
+    ],
+    "source_line": 149,
+    "source_record_sha256": "a28ec68a8e3ac47e3a3645176a91694a601bb3e076ec2a6d9dc4654e8bf3ddf7"
+  },
+  {
+    "task_id": "calcite_244",
+    "schema": {
+      "EMP": {
+        "EMPNO": "INT",
+        "DEPTNO": "INT",
+        "ENAME": "VARCHAR",
+        "JOB": "VARCHAR",
+        "MGR": "INT",
+        "HIREDATE": "DATE",
+        "SAL": "INT",
+        "COMM": "INT",
+        "SLACKER": "BOOLEAN"
+      },
+      "DEPT": {
+        "DEPTNO": "INT",
+        "NAME": "VARCHAR"
+      },
+      "BONUS": {
+        "ENAME": "VARCHAR",
+        "JOB": "VARCHAR",
+        "SAL": "INT",
+        "COMM": "INT"
+      },
+      "EMPNULLABLES": {
+        "EMPNO": "INT",
+        "DEPTNO": "INT",
+        "ENAME": "VARCHAR",
+        "JOB": "VARCHAR",
+        "MGR": "INT",
+        "HIREDATE": "DATE",
+        "SAL": "INT",
+        "COMM": "INT",
+        "SLACKER": "BOOLEAN"
+      },
+      "EMPNULLABLES_20": {
+        "EMPNO": "INT",
+        "DEPTNO": "INT",
+        "ENAME": "VARCHAR",
+        "JOB": "VARCHAR",
+        "MGR": "INT",
+        "HIREDATE": "DATE",
+        "SAL": "INT",
+        "COMM": "INT",
+        "SLACKER": "BOOLEAN"
+      },
+      "EMP_B": {
+        "EMPNO": "INT",
+        "DEPTNO": "INT",
+        "ENAME": "VARCHAR",
+        "JOB": "VARCHAR",
+        "MGR": "INT",
+        "HIREDATE": "DATE",
+        "SAL": "INT",
+        "COMM": "INT",
+        "SLACKER": "BOOLEAN",
+        "BIRTHDATE": "DATE"
+      }
+    },
+    "sql": [
+      "SELECT SUM(t0.SAL) FROM EMP INNER JOIN (SELECT SAL FROM EMP GROUP BY SAL) AS t0 ON EMP.SAL = t0.SAL",
+      "SELECT SUM(CAST(t3.$f1 * t4.SAL AS INTEGER)) FROM (SELECT SAL, COUNT(*) AS $f1 FROM EMP GROUP BY SAL) AS t3 INNER JOIN (SELECT SAL FROM EMP GROUP BY SAL) AS t4 ON t3.SAL = t4.SAL"
+    ],
+    "constraints": [
+      {
+        "not_null": {
+          "value": "EMP__EMPNO"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP__ENAME"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP__JOB"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP__HIREDATE"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP__SAL"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP__COMM"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP__DEPTNO"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP__SLACKER"
+        }
+      },
+      {
+        "not_null": {
+          "value": "DEPT__DEPTNO"
+        }
+      },
+      {
+        "not_null": {
+          "value": "DEPT__NAME"
+        }
+      },
+      {
+        "not_null": {
+          "value": "BONUS__ENAME"
+        }
+      },
+      {
+        "not_null": {
+          "value": "BONUS__JOB"
+        }
+      },
+      {
+        "not_null": {
+          "value": "BONUS__SAL"
+        }
+      },
+      {
+        "not_null": {
+          "value": "BONUS__COMM"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__EMPNO"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__ENAME"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__JOB"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__HIREDATE"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__SAL"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__COMM"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__DEPTNO"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__SLACKER"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__BIRTHDATE"
+        }
+      },
+      {
+        "primary": [
+          {
+            "value": "EMP__EMPNO"
+          }
+        ]
+      },
+      {
+        "foreign": [
+          {
+            "value": "EMP__DEPTNO"
+          },
+          {
+            "value": "DEPT__DEPTNO"
+          }
+        ]
+      },
+      {
+        "primary": [
+          {
+            "value": "DEPT__DEPTNO"
+          }
+        ]
+      },
+      {
+        "primary": [
+          {
+            "value": "EMPNULLABLES__EMPNO"
+          }
+        ]
+      },
+      {
+        "foreign": [
+          {
+            "value": "EMPNULLABLES__DEPTNO"
+          },
+          {
+            "value": "DEPT__DEPTNO"
+          }
+        ]
+      },
+      {
+        "primary": [
+          {
+            "value": "EMPNULLABLES_20__EMPNO"
+          }
+        ]
+      },
+      {
+        "foreign": [
+          {
+            "value": "EMPNULLABLES_20__DEPTNO"
+          },
+          {
+            "value": "DEPT__DEPTNO"
+          }
+        ]
+      },
+      {
+        "primary": [
+          {
+            "value": "EMP_B__EMPNO"
+          }
+        ]
+      },
+      {
+        "foreign": [
+          {
+            "value": "EMP_B__DEPTNO"
+          },
+          {
+            "value": "DEPT__DEPTNO"
+          }
+        ]
+      }
+    ],
+    "classification": "faithful_export",
+    "property": "Original Calcite query-rewrite result-bag equality (pair 244)",
+    "nonlinearity_meaning": "Join multiplicity counts times salary/aggregate totals in the original Calcite optimizer rewrite",
+    "source_files": [
+      "benchmarks/calcite/calcite2.jsonlines"
+    ],
+    "source_ids": [
+      "VeriEQL-v1.0",
+      "Calcite-397/244"
+    ],
+    "source_line": 244,
+    "source_record_sha256": "873f4ff8d7c025edcd414799575114235f1ea1880be95c2096d32465e5995f29"
+  },
+  {
+    "task_id": "calcite_77",
+    "schema": {
+      "EMP": {
+        "EMPNO": "INT",
+        "DEPTNO": "INT",
+        "ENAME": "VARCHAR",
+        "JOB": "VARCHAR",
+        "MGR": "INT",
+        "HIREDATE": "DATE",
+        "SAL": "INT",
+        "COMM": "INT",
+        "SLACKER": "BOOLEAN"
+      },
+      "DEPT": {
+        "DEPTNO": "INT",
+        "NAME": "VARCHAR"
+      },
+      "BONUS": {
+        "ENAME": "VARCHAR",
+        "JOB": "VARCHAR",
+        "SAL": "INT",
+        "COMM": "INT"
+      },
+      "EMPNULLABLES": {
+        "EMPNO": "INT",
+        "DEPTNO": "INT",
+        "ENAME": "VARCHAR",
+        "JOB": "VARCHAR",
+        "MGR": "INT",
+        "HIREDATE": "DATE",
+        "SAL": "INT",
+        "COMM": "INT",
+        "SLACKER": "BOOLEAN"
+      },
+      "EMPNULLABLES_20": {
+        "EMPNO": "INT",
+        "DEPTNO": "INT",
+        "ENAME": "VARCHAR",
+        "JOB": "VARCHAR",
+        "MGR": "INT",
+        "HIREDATE": "DATE",
+        "SAL": "INT",
+        "COMM": "INT",
+        "SLACKER": "BOOLEAN"
+      },
+      "EMP_B": {
+        "EMPNO": "INT",
+        "DEPTNO": "INT",
+        "ENAME": "VARCHAR",
+        "JOB": "VARCHAR",
+        "MGR": "INT",
+        "HIREDATE": "DATE",
+        "SAL": "INT",
+        "COMM": "INT",
+        "SLACKER": "BOOLEAN",
+        "BIRTHDATE": "DATE"
+      }
+    },
+    "sql": [
+      "SELECT EMP.JOB, MIN(EMP.SAL) AS MIN_SAL, MIN(EMP.DEPTNO) AS MIN_DEPTNO, SUM(EMP.SAL) + 1 AS SUM_SAL_PLUS, MAX(EMP.SAL) AS MAX_SAL, SUM(EMP.SAL) AS SUM_SAL_2, COUNT(*) AS COUNT_SAL, COUNT(EMP.MGR) AS COUNT_MGR FROM EMP INNER JOIN DEPT ON EMP.JOB = DEPT.NAME GROUP BY EMP.JOB, DEPT.NAME",
+      "SELECT t2.JOB, t2.MIN_SAL, t2.MIN_DEPTNO, CAST(t2.SUM_SAL_2 * t3.$f1 AS INTEGER) + 1 AS SUM_SAL_PLUS, t2.MAX_SAL, CAST(t2.SUM_SAL_2 * t3.$f1 AS INTEGER) AS SUM_SAL_2, t2.COUNT_SAL * t3.$f1 AS COUNT_SAL, t2.COUNT_MGR * t3.$f1 AS COUNT_MGR FROM (SELECT JOB, MIN(SAL) AS MIN_SAL, MIN(DEPTNO) AS MIN_DEPTNO, SUM(SAL) AS SUM_SAL_2, MAX(SAL) AS MAX_SAL, COUNT(*) AS COUNT_SAL, COUNT(MGR) AS COUNT_MGR FROM EMP GROUP BY JOB) AS t2 INNER JOIN (SELECT NAME, COUNT(*) AS $f1 FROM DEPT GROUP BY NAME) AS t3 ON t2.JOB = t3.NAME"
+    ],
+    "constraints": [
+      {
+        "not_null": {
+          "value": "EMP__EMPNO"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP__ENAME"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP__JOB"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP__HIREDATE"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP__SAL"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP__COMM"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP__DEPTNO"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP__SLACKER"
+        }
+      },
+      {
+        "not_null": {
+          "value": "DEPT__DEPTNO"
+        }
+      },
+      {
+        "not_null": {
+          "value": "DEPT__NAME"
+        }
+      },
+      {
+        "not_null": {
+          "value": "BONUS__ENAME"
+        }
+      },
+      {
+        "not_null": {
+          "value": "BONUS__JOB"
+        }
+      },
+      {
+        "not_null": {
+          "value": "BONUS__SAL"
+        }
+      },
+      {
+        "not_null": {
+          "value": "BONUS__COMM"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__EMPNO"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__ENAME"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__JOB"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__HIREDATE"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__SAL"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__COMM"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__DEPTNO"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__SLACKER"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__BIRTHDATE"
+        }
+      },
+      {
+        "primary": [
+          {
+            "value": "EMP__EMPNO"
+          }
+        ]
+      },
+      {
+        "foreign": [
+          {
+            "value": "EMP__DEPTNO"
+          },
+          {
+            "value": "DEPT__DEPTNO"
+          }
+        ]
+      },
+      {
+        "primary": [
+          {
+            "value": "DEPT__DEPTNO"
+          }
+        ]
+      },
+      {
+        "primary": [
+          {
+            "value": "EMPNULLABLES__EMPNO"
+          }
+        ]
+      },
+      {
+        "foreign": [
+          {
+            "value": "EMPNULLABLES__DEPTNO"
+          },
+          {
+            "value": "DEPT__DEPTNO"
+          }
+        ]
+      },
+      {
+        "primary": [
+          {
+            "value": "EMPNULLABLES_20__EMPNO"
+          }
+        ]
+      },
+      {
+        "foreign": [
+          {
+            "value": "EMPNULLABLES_20__DEPTNO"
+          },
+          {
+            "value": "DEPT__DEPTNO"
+          }
+        ]
+      },
+      {
+        "primary": [
+          {
+            "value": "EMP_B__EMPNO"
+          }
+        ]
+      },
+      {
+        "foreign": [
+          {
+            "value": "EMP_B__DEPTNO"
+          },
+          {
+            "value": "DEPT__DEPTNO"
+          }
+        ]
+      }
+    ],
+    "classification": "faithful_export",
+    "property": "Original Calcite query-rewrite result-bag equality (pair 77)",
+    "nonlinearity_meaning": "Join multiplicity counts times salary/aggregate totals in the original Calcite optimizer rewrite",
+    "source_files": [
+      "benchmarks/calcite/calcite2.jsonlines"
+    ],
+    "source_ids": [
+      "VeriEQL-v1.0",
+      "Calcite-397/77"
+    ],
+    "source_line": 77,
+    "source_record_sha256": "3eb6dc5cc14a49f62340c07366df5b64f74c6cb245f55256b3d1be64b52f98c8"
+  },
+  {
+    "task_id": "calcite_211",
+    "schema": {
+      "EMP": {
+        "EMPNO": "INT",
+        "DEPTNO": "INT",
+        "ENAME": "VARCHAR",
+        "JOB": "VARCHAR",
+        "MGR": "INT",
+        "HIREDATE": "DATE",
+        "SAL": "INT",
+        "COMM": "INT",
+        "SLACKER": "BOOLEAN"
+      },
+      "DEPT": {
+        "DEPTNO": "INT",
+        "NAME": "VARCHAR"
+      },
+      "BONUS": {
+        "ENAME": "VARCHAR",
+        "JOB": "VARCHAR",
+        "SAL": "INT",
+        "COMM": "INT"
+      },
+      "EMPNULLABLES": {
+        "EMPNO": "INT",
+        "DEPTNO": "INT",
+        "ENAME": "VARCHAR",
+        "JOB": "VARCHAR",
+        "MGR": "INT",
+        "HIREDATE": "DATE",
+        "SAL": "INT",
+        "COMM": "INT",
+        "SLACKER": "BOOLEAN"
+      },
+      "EMPNULLABLES_20": {
+        "EMPNO": "INT",
+        "DEPTNO": "INT",
+        "ENAME": "VARCHAR",
+        "JOB": "VARCHAR",
+        "MGR": "INT",
+        "HIREDATE": "DATE",
+        "SAL": "INT",
+        "COMM": "INT",
+        "SLACKER": "BOOLEAN"
+      },
+      "EMP_B": {
+        "EMPNO": "INT",
+        "DEPTNO": "INT",
+        "ENAME": "VARCHAR",
+        "JOB": "VARCHAR",
+        "MGR": "INT",
+        "HIREDATE": "DATE",
+        "SAL": "INT",
+        "COMM": "INT",
+        "SLACKER": "BOOLEAN",
+        "BIRTHDATE": "DATE"
+      }
+    },
+    "sql": [
+      "SELECT EMP.JOB, t0.MGR, EMP.DEPTNO, MAX(t0.HIREDATE1) AS HIREDATE1, SUM(t0.COMM1) AS COMM1 FROM EMP INNER JOIN (SELECT MGR, SAL, MAX(HIREDATE) AS HIREDATE1, SUM(COMM) AS COMM1 FROM EMP GROUP BY MGR, SAL) AS t0 ON EMP.SAL = t0.SAL GROUP BY EMP.JOB, t0.MGR, EMP.DEPTNO",
+      "SELECT t3.JOB, t4.MGR AS MGR0, t3.DEPTNO, MAX(t4.HIREDATE1) AS HIREDATE1, SUM(CAST(t3.$f3 * t4.COMM1 AS INTEGER)) AS COMM1 FROM (SELECT JOB, SAL, DEPTNO, COUNT(*) AS $f3 FROM EMP GROUP BY JOB, SAL, DEPTNO) AS t3 INNER JOIN (SELECT MGR, SAL, MAX(HIREDATE) AS HIREDATE1, SUM(COMM) AS COMM1 FROM EMP GROUP BY MGR, SAL) AS t4 ON t3.SAL = t4.SAL GROUP BY t3.JOB, t3.DEPTNO, t4.MGR"
+    ],
+    "constraints": [
+      {
+        "not_null": {
+          "value": "EMP__EMPNO"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP__ENAME"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP__JOB"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP__HIREDATE"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP__SAL"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP__COMM"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP__DEPTNO"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP__SLACKER"
+        }
+      },
+      {
+        "not_null": {
+          "value": "DEPT__DEPTNO"
+        }
+      },
+      {
+        "not_null": {
+          "value": "DEPT__NAME"
+        }
+      },
+      {
+        "not_null": {
+          "value": "BONUS__ENAME"
+        }
+      },
+      {
+        "not_null": {
+          "value": "BONUS__JOB"
+        }
+      },
+      {
+        "not_null": {
+          "value": "BONUS__SAL"
+        }
+      },
+      {
+        "not_null": {
+          "value": "BONUS__COMM"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__EMPNO"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__ENAME"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__JOB"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__HIREDATE"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__SAL"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__COMM"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__DEPTNO"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__SLACKER"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__BIRTHDATE"
+        }
+      },
+      {
+        "primary": [
+          {
+            "value": "EMP__EMPNO"
+          }
+        ]
+      },
+      {
+        "foreign": [
+          {
+            "value": "EMP__DEPTNO"
+          },
+          {
+            "value": "DEPT__DEPTNO"
+          }
+        ]
+      },
+      {
+        "primary": [
+          {
+            "value": "DEPT__DEPTNO"
+          }
+        ]
+      },
+      {
+        "primary": [
+          {
+            "value": "EMPNULLABLES__EMPNO"
+          }
+        ]
+      },
+      {
+        "foreign": [
+          {
+            "value": "EMPNULLABLES__DEPTNO"
+          },
+          {
+            "value": "DEPT__DEPTNO"
+          }
+        ]
+      },
+      {
+        "primary": [
+          {
+            "value": "EMPNULLABLES_20__EMPNO"
+          }
+        ]
+      },
+      {
+        "foreign": [
+          {
+            "value": "EMPNULLABLES_20__DEPTNO"
+          },
+          {
+            "value": "DEPT__DEPTNO"
+          }
+        ]
+      },
+      {
+        "primary": [
+          {
+            "value": "EMP_B__EMPNO"
+          }
+        ]
+      },
+      {
+        "foreign": [
+          {
+            "value": "EMP_B__DEPTNO"
+          },
+          {
+            "value": "DEPT__DEPTNO"
+          }
+        ]
+      }
+    ],
+    "classification": "faithful_export",
+    "property": "Original Calcite query-rewrite result-bag equality (pair 211)",
+    "nonlinearity_meaning": "Join multiplicity counts times salary/aggregate totals in the original Calcite optimizer rewrite",
+    "source_files": [
+      "benchmarks/calcite/calcite2.jsonlines"
+    ],
+    "source_ids": [
+      "VeriEQL-v1.0",
+      "Calcite-397/211"
+    ],
+    "source_line": 211,
+    "source_record_sha256": "5f41e00e6447913f4081778ea6b1ed72e0d6750b1a81430b939ade0eb3b9d7ff"
+  },
+  {
+    "task_id": "calcite_262",
+    "schema": {
+      "EMP": {
+        "EMPNO": "INT",
+        "DEPTNO": "INT",
+        "ENAME": "VARCHAR",
+        "JOB": "VARCHAR",
+        "MGR": "INT",
+        "HIREDATE": "DATE",
+        "SAL": "INT",
+        "COMM": "INT",
+        "SLACKER": "BOOLEAN"
+      },
+      "DEPT": {
+        "DEPTNO": "INT",
+        "NAME": "VARCHAR"
+      },
+      "BONUS": {
+        "ENAME": "VARCHAR",
+        "JOB": "VARCHAR",
+        "SAL": "INT",
+        "COMM": "INT"
+      },
+      "EMPNULLABLES": {
+        "EMPNO": "INT",
+        "DEPTNO": "INT",
+        "ENAME": "VARCHAR",
+        "JOB": "VARCHAR",
+        "MGR": "INT",
+        "HIREDATE": "DATE",
+        "SAL": "INT",
+        "COMM": "INT",
+        "SLACKER": "BOOLEAN"
+      },
+      "EMPNULLABLES_20": {
+        "EMPNO": "INT",
+        "DEPTNO": "INT",
+        "ENAME": "VARCHAR",
+        "JOB": "VARCHAR",
+        "MGR": "INT",
+        "HIREDATE": "DATE",
+        "SAL": "INT",
+        "COMM": "INT",
+        "SLACKER": "BOOLEAN"
+      },
+      "EMP_B": {
+        "EMPNO": "INT",
+        "DEPTNO": "INT",
+        "ENAME": "VARCHAR",
+        "JOB": "VARCHAR",
+        "MGR": "INT",
+        "HIREDATE": "DATE",
+        "SAL": "INT",
+        "COMM": "INT",
+        "SLACKER": "BOOLEAN",
+        "BIRTHDATE": "DATE"
+      }
+    },
+    "sql": [
+      "SELECT t0.JOB, SUM(t0.SAL) FROM (SELECT * FROM EMP WHERE ENAME = 'A') AS t0 INNER JOIN DEPT ON t0.JOB = DEPT.NAME GROUP BY t0.JOB, DEPT.NAME",
+      "SELECT t6.JOB, CAST(t6.EXPR$1 * t7.$f1 AS INTEGER) FROM (SELECT JOB, SUM(SAL) AS EXPR$1 FROM EMP WHERE ENAME = 'A' GROUP BY JOB) AS t6 INNER JOIN (SELECT NAME, COUNT(*) AS $f1 FROM DEPT GROUP BY NAME) AS t7 ON t6.JOB = t7.NAME"
+    ],
+    "constraints": [
+      {
+        "not_null": {
+          "value": "EMP__EMPNO"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP__ENAME"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP__JOB"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP__HIREDATE"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP__SAL"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP__COMM"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP__DEPTNO"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP__SLACKER"
+        }
+      },
+      {
+        "not_null": {
+          "value": "DEPT__DEPTNO"
+        }
+      },
+      {
+        "not_null": {
+          "value": "DEPT__NAME"
+        }
+      },
+      {
+        "not_null": {
+          "value": "BONUS__ENAME"
+        }
+      },
+      {
+        "not_null": {
+          "value": "BONUS__JOB"
+        }
+      },
+      {
+        "not_null": {
+          "value": "BONUS__SAL"
+        }
+      },
+      {
+        "not_null": {
+          "value": "BONUS__COMM"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__EMPNO"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__ENAME"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__JOB"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__HIREDATE"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__SAL"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__COMM"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__DEPTNO"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__SLACKER"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__BIRTHDATE"
+        }
+      },
+      {
+        "primary": [
+          {
+            "value": "EMP__EMPNO"
+          }
+        ]
+      },
+      {
+        "foreign": [
+          {
+            "value": "EMP__DEPTNO"
+          },
+          {
+            "value": "DEPT__DEPTNO"
+          }
+        ]
+      },
+      {
+        "primary": [
+          {
+            "value": "DEPT__DEPTNO"
+          }
+        ]
+      },
+      {
+        "primary": [
+          {
+            "value": "EMPNULLABLES__EMPNO"
+          }
+        ]
+      },
+      {
+        "foreign": [
+          {
+            "value": "EMPNULLABLES__DEPTNO"
+          },
+          {
+            "value": "DEPT__DEPTNO"
+          }
+        ]
+      },
+      {
+        "primary": [
+          {
+            "value": "EMPNULLABLES_20__EMPNO"
+          }
+        ]
+      },
+      {
+        "foreign": [
+          {
+            "value": "EMPNULLABLES_20__DEPTNO"
+          },
+          {
+            "value": "DEPT__DEPTNO"
+          }
+        ]
+      },
+      {
+        "primary": [
+          {
+            "value": "EMP_B__EMPNO"
+          }
+        ]
+      },
+      {
+        "foreign": [
+          {
+            "value": "EMP_B__DEPTNO"
+          },
+          {
+            "value": "DEPT__DEPTNO"
+          }
+        ]
+      }
+    ],
+    "classification": "faithful_export",
+    "property": "Original Calcite query-rewrite result-bag equality (pair 262)",
+    "nonlinearity_meaning": "Join multiplicity counts times salary/aggregate totals in the original Calcite optimizer rewrite",
+    "source_files": [
+      "benchmarks/calcite/calcite2.jsonlines"
+    ],
+    "source_ids": [
+      "VeriEQL-v1.0",
+      "Calcite-397/262"
+    ],
+    "source_line": 262,
+    "source_record_sha256": "d72b5e8689a0ebbd23e8f84af96aa913f187bcb5eef7939bee89c9fd6c6c6b1d"
+  },
+  {
+    "task_id": "calcite_264",
+    "schema": {
+      "EMP": {
+        "EMPNO": "INT",
+        "DEPTNO": "INT",
+        "ENAME": "VARCHAR",
+        "JOB": "VARCHAR",
+        "MGR": "INT",
+        "HIREDATE": "DATE",
+        "SAL": "INT",
+        "COMM": "INT",
+        "SLACKER": "BOOLEAN"
+      },
+      "DEPT": {
+        "DEPTNO": "INT",
+        "NAME": "VARCHAR"
+      },
+      "BONUS": {
+        "ENAME": "VARCHAR",
+        "JOB": "VARCHAR",
+        "SAL": "INT",
+        "COMM": "INT"
+      },
+      "EMPNULLABLES": {
+        "EMPNO": "INT",
+        "DEPTNO": "INT",
+        "ENAME": "VARCHAR",
+        "JOB": "VARCHAR",
+        "MGR": "INT",
+        "HIREDATE": "DATE",
+        "SAL": "INT",
+        "COMM": "INT",
+        "SLACKER": "BOOLEAN"
+      },
+      "EMPNULLABLES_20": {
+        "EMPNO": "INT",
+        "DEPTNO": "INT",
+        "ENAME": "VARCHAR",
+        "JOB": "VARCHAR",
+        "MGR": "INT",
+        "HIREDATE": "DATE",
+        "SAL": "INT",
+        "COMM": "INT",
+        "SLACKER": "BOOLEAN"
+      },
+      "EMP_B": {
+        "EMPNO": "INT",
+        "DEPTNO": "INT",
+        "ENAME": "VARCHAR",
+        "JOB": "VARCHAR",
+        "MGR": "INT",
+        "HIREDATE": "DATE",
+        "SAL": "INT",
+        "COMM": "INT",
+        "SLACKER": "BOOLEAN",
+        "BIRTHDATE": "DATE"
+      }
+    },
+    "sql": [
+      "SELECT SUM(t0.SAL) FROM (SELECT * FROM EMP WHERE ENAME = 'A') AS t0 INNER JOIN DEPT ON t0.JOB = DEPT.NAME",
+      "SELECT SUM(CAST(t5.EXPR$0 * t6.$f1 AS INTEGER)) FROM (SELECT JOB, SUM(SAL) AS EXPR$0 FROM EMP WHERE ENAME = 'A' GROUP BY JOB) AS t5 INNER JOIN (SELECT NAME, COUNT(*) AS $f1 FROM DEPT GROUP BY NAME) AS t6 ON t5.JOB = t6.NAME"
+    ],
+    "constraints": [
+      {
+        "not_null": {
+          "value": "EMP__EMPNO"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP__ENAME"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP__JOB"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP__HIREDATE"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP__SAL"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP__COMM"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP__DEPTNO"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP__SLACKER"
+        }
+      },
+      {
+        "not_null": {
+          "value": "DEPT__DEPTNO"
+        }
+      },
+      {
+        "not_null": {
+          "value": "DEPT__NAME"
+        }
+      },
+      {
+        "not_null": {
+          "value": "BONUS__ENAME"
+        }
+      },
+      {
+        "not_null": {
+          "value": "BONUS__JOB"
+        }
+      },
+      {
+        "not_null": {
+          "value": "BONUS__SAL"
+        }
+      },
+      {
+        "not_null": {
+          "value": "BONUS__COMM"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__EMPNO"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__ENAME"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__JOB"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__HIREDATE"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__SAL"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__COMM"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__DEPTNO"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__SLACKER"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__BIRTHDATE"
+        }
+      },
+      {
+        "primary": [
+          {
+            "value": "EMP__EMPNO"
+          }
+        ]
+      },
+      {
+        "foreign": [
+          {
+            "value": "EMP__DEPTNO"
+          },
+          {
+            "value": "DEPT__DEPTNO"
+          }
+        ]
+      },
+      {
+        "primary": [
+          {
+            "value": "DEPT__DEPTNO"
+          }
+        ]
+      },
+      {
+        "primary": [
+          {
+            "value": "EMPNULLABLES__EMPNO"
+          }
+        ]
+      },
+      {
+        "foreign": [
+          {
+            "value": "EMPNULLABLES__DEPTNO"
+          },
+          {
+            "value": "DEPT__DEPTNO"
+          }
+        ]
+      },
+      {
+        "primary": [
+          {
+            "value": "EMPNULLABLES_20__EMPNO"
+          }
+        ]
+      },
+      {
+        "foreign": [
+          {
+            "value": "EMPNULLABLES_20__DEPTNO"
+          },
+          {
+            "value": "DEPT__DEPTNO"
+          }
+        ]
+      },
+      {
+        "primary": [
+          {
+            "value": "EMP_B__EMPNO"
+          }
+        ]
+      },
+      {
+        "foreign": [
+          {
+            "value": "EMP_B__DEPTNO"
+          },
+          {
+            "value": "DEPT__DEPTNO"
+          }
+        ]
+      }
+    ],
+    "classification": "faithful_export",
+    "property": "Original Calcite query-rewrite result-bag equality (pair 264)",
+    "nonlinearity_meaning": "Join multiplicity counts times salary/aggregate totals in the original Calcite optimizer rewrite",
+    "source_files": [
+      "benchmarks/calcite/calcite2.jsonlines"
+    ],
+    "source_ids": [
+      "VeriEQL-v1.0",
+      "Calcite-397/264"
+    ],
+    "source_line": 264,
+    "source_record_sha256": "bd0e6aea3a1f3be1b57da8e4f1b91c43648f8fc769bb3af99b57a2a6ea66fd51"
+  },
+  {
+    "task_id": "calcite_281",
+    "schema": {
+      "EMP": {
+        "EMPNO": "INT",
+        "DEPTNO": "INT",
+        "ENAME": "VARCHAR",
+        "JOB": "VARCHAR",
+        "MGR": "INT",
+        "HIREDATE": "DATE",
+        "SAL": "INT",
+        "COMM": "INT",
+        "SLACKER": "BOOLEAN"
+      },
+      "DEPT": {
+        "DEPTNO": "INT",
+        "NAME": "VARCHAR"
+      },
+      "BONUS": {
+        "ENAME": "VARCHAR",
+        "JOB": "VARCHAR",
+        "SAL": "INT",
+        "COMM": "INT"
+      },
+      "EMPNULLABLES": {
+        "EMPNO": "INT",
+        "DEPTNO": "INT",
+        "ENAME": "VARCHAR",
+        "JOB": "VARCHAR",
+        "MGR": "INT",
+        "HIREDATE": "DATE",
+        "SAL": "INT",
+        "COMM": "INT",
+        "SLACKER": "BOOLEAN"
+      },
+      "EMPNULLABLES_20": {
+        "EMPNO": "INT",
+        "DEPTNO": "INT",
+        "ENAME": "VARCHAR",
+        "JOB": "VARCHAR",
+        "MGR": "INT",
+        "HIREDATE": "DATE",
+        "SAL": "INT",
+        "COMM": "INT",
+        "SLACKER": "BOOLEAN"
+      },
+      "EMP_B": {
+        "EMPNO": "INT",
+        "DEPTNO": "INT",
+        "ENAME": "VARCHAR",
+        "JOB": "VARCHAR",
+        "MGR": "INT",
+        "HIREDATE": "DATE",
+        "SAL": "INT",
+        "COMM": "INT",
+        "SLACKER": "BOOLEAN",
+        "BIRTHDATE": "DATE"
+      }
+    },
+    "sql": [
+      "SELECT SUM(t0.SAL) FROM (SELECT * FROM EMP WHERE ENAME = 'A') AS t0 INNER JOIN DEPT ON t0.JOB = DEPT.NAME",
+      "SELECT CASE WHEN COALESCE(SUM(t5.$f2 * t6.$f1), 0) = 0 THEN NULL ELSE COALESCE(SUM(CAST(t5.EXPR$0 * t6.$f1 AS INTEGER)), 0) END FROM (SELECT JOB, COALESCE(SUM(SAL), 0) AS EXPR$0, COUNT(*) AS $f2 FROM EMP WHERE ENAME = 'A' GROUP BY JOB) AS t5 INNER JOIN (SELECT NAME, COUNT(*) AS $f1 FROM DEPT GROUP BY NAME) AS t6 ON t5.JOB = t6.NAME"
+    ],
+    "constraints": [
+      {
+        "not_null": {
+          "value": "EMP__EMPNO"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP__ENAME"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP__JOB"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP__HIREDATE"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP__SAL"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP__COMM"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP__DEPTNO"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP__SLACKER"
+        }
+      },
+      {
+        "not_null": {
+          "value": "DEPT__DEPTNO"
+        }
+      },
+      {
+        "not_null": {
+          "value": "DEPT__NAME"
+        }
+      },
+      {
+        "not_null": {
+          "value": "BONUS__ENAME"
+        }
+      },
+      {
+        "not_null": {
+          "value": "BONUS__JOB"
+        }
+      },
+      {
+        "not_null": {
+          "value": "BONUS__SAL"
+        }
+      },
+      {
+        "not_null": {
+          "value": "BONUS__COMM"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__EMPNO"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__ENAME"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__JOB"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__HIREDATE"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__SAL"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__COMM"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__DEPTNO"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__SLACKER"
+        }
+      },
+      {
+        "not_null": {
+          "value": "EMP_B__BIRTHDATE"
+        }
+      },
+      {
+        "primary": [
+          {
+            "value": "EMP__EMPNO"
+          }
+        ]
+      },
+      {
+        "foreign": [
+          {
+            "value": "EMP__DEPTNO"
+          },
+          {
+            "value": "DEPT__DEPTNO"
+          }
+        ]
+      },
+      {
+        "primary": [
+          {
+            "value": "DEPT__DEPTNO"
+          }
+        ]
+      },
+      {
+        "primary": [
+          {
+            "value": "EMPNULLABLES__EMPNO"
+          }
+        ]
+      },
+      {
+        "foreign": [
+          {
+            "value": "EMPNULLABLES__DEPTNO"
+          },
+          {
+            "value": "DEPT__DEPTNO"
+          }
+        ]
+      },
+      {
+        "primary": [
+          {
+            "value": "EMPNULLABLES_20__EMPNO"
+          }
+        ]
+      },
+      {
+        "foreign": [
+          {
+            "value": "EMPNULLABLES_20__DEPTNO"
+          },
+          {
+            "value": "DEPT__DEPTNO"
+          }
+        ]
+      },
+      {
+        "primary": [
+          {
+            "value": "EMP_B__EMPNO"
+          }
+        ]
+      },
+      {
+        "foreign": [
+          {
+            "value": "EMP_B__DEPTNO"
+          },
+          {
+            "value": "DEPT__DEPTNO"
+          }
+        ]
+      }
+    ],
+    "classification": "faithful_export",
+    "property": "Original Calcite query-rewrite result-bag equality (pair 281)",
+    "nonlinearity_meaning": "Join multiplicity counts times salary/aggregate totals in the original Calcite optimizer rewrite",
+    "source_files": [
+      "benchmarks/calcite/calcite2.jsonlines"
+    ],
+    "source_ids": [
+      "VeriEQL-v1.0",
+      "Calcite-397/281"
+    ],
+    "source_line": 281,
+    "source_record_sha256": "9dfb73e78af54202439fa2400b2de4f1caf7f47a1a3c20a6edbade55fae2121f"
+  },
+  {
+    "task_id": "leetcode_1715",
+    "schema": {
+      "CHESTS": {
+        "CHEST_ID": "INT",
+        "APPLE_COUNT": "INT",
+        "ORANGE_COUNT": "INT"
+      },
+      "BOXES": {
+        "BOX_ID": "INT",
+        "CHEST_ID": "INT",
+        "APPLE_COUNT": "INT",
+        "ORANGE_COUNT": "INT"
+      }
+    },
+    "sql": [
+      "SELECT SUM(B.APPLE_COUNT + IFNULL(C.APPLE_COUNT, 0)) AS APPLE_COUNT , SUM(B.ORANGE_COUNT + IFNULL(C.ORANGE_COUNT,0)) AS ORANGE_COUNT FROM BOXES B LEFT JOIN CHESTS C ON B.CHEST_ID = C.CHEST_ID",
+      "WITH AA AS (SELECT SUM(APPLE_COUNT) AS APPLE_COUNT, SUM(ORANGE_COUNT) AS ORANGE_COUNT FROM BOXES), BB AS (SELECT A.APPLE_COUNT*COUNT(B.BOX_ID) AS APPLE_COUNT, A.ORANGE_COUNT*COUNT(B.BOX_ID) AS ORANGE_COUNT FROM CHESTS AS A JOIN BOXES AS B ON A.CHEST_ID=B.CHEST_ID GROUP BY A.CHEST_ID) SELECT SUM(APPLE_COUNT) AS APPLE_COUNT, SUM(ORANGE_COUNT) AS ORANGE_COUNT FROM (SELECT * FROM AA UNION ALL SELECT * FROM BB) AS CC"
+    ],
+    "constraints": [
+      {
+        "primary": [
+          {
+            "value": "BOXES__BOX_ID"
+          }
+        ]
+      },
+      {
+        "primary": [
+          {
+            "value": "CHESTS__CHEST_ID"
+          }
+        ]
+      },
+      {
+        "foreign": [
+          {
+            "value": "BOXES__CHEST_ID"
+          },
+          {
+            "value": "CHESTS__CHEST_ID"
+          }
+        ]
+      },
+      {
+        "gte": [
+          {
+            "value": "BOXES__APPLE_COUNT"
+          },
+          0
+        ]
+      },
+      {
+        "gte": [
+          {
+            "value": "BOXES__ORANGE_COUNT"
+          },
+          0
+        ]
+      },
+      {
+        "gte": [
+          {
+            "value": "CHESTS__APPLE_COUNT"
+          },
+          0
+        ]
+      },
+      {
+        "gte": [
+          {
+            "value": "CHESTS__ORANGE_COUNT"
+          },
+          0
+        ]
+      }
+    ],
+    "classification": "faithful_export",
+    "property": "Original public LeetCode problem 1715 result-bag equivalence pair",
+    "nonlinearity_meaning": "Chest fruit counts times number of boxes referencing that chest",
+    "source_files": [
+      "benchmarks/leetcode/leetcode.jsonlines"
+    ],
+    "source_ids": [
+      "VeriEQL-v1.0",
+      "LeetCode/1715"
+    ],
+    "source_line": 20325,
+    "source_record_sha256": "45c95c4cde7cb5b1093239a643702d3a4603a489b047abab4a5cb50c93da3b85",
+    "split_group": "verieql/leetcode_1715"
+  }
+]

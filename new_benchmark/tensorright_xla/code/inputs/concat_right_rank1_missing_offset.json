@@ -1,0 +1,5 @@
+{
+  "fault": "missing_offset",
+  "rank": 1,
+  "rule": "concat_right"
+}

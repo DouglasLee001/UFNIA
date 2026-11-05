@@ -1,0 +1,44 @@
+[
+  {
+    "schema": {
+      "ORDERS": {
+        "ORDER_ID": "INT",
+        "QUANTITY": "INT",
+        "UNIT_PRICE": "INT"
+      }
+    },
+    "classification": "application_derived",
+    "source_files": [
+      "environment.py",
+      "applications/03_VeriEQL_SQL.md"
+    ],
+    "nonlinearity_meaning": "Orders.quantity times Orders.unit_price: integer-cent order line amount",
+    "task_id": "orders_amount_commute",
+    "sql": [
+      "SELECT ORDER_ID, QUANTITY * UNIT_PRICE AS AMOUNT FROM ORDERS WHERE QUANTITY > 0",
+      "SELECT ORDER_ID, UNIT_PRICE * QUANTITY AS AMOUNT FROM ORDERS WHERE QUANTITY > 0"
+    ],
+    "property": "Commuting quantity and integer-cent price preserves order amounts"
+  },
+  {
+    "schema": {
+      "ORDERS": {
+        "ORDER_ID": "INT",
+        "QUANTITY": "INT",
+        "UNIT_PRICE": "INT"
+      }
+    },
+    "classification": "application_derived",
+    "source_files": [
+      "environment.py",
+      "applications/03_VeriEQL_SQL.md"
+    ],
+    "nonlinearity_meaning": "Orders.quantity times Orders.unit_price: integer-cent order line amount",
+    "task_id": "orders_amount_overcharge",
+    "sql": [
+      "SELECT ORDER_ID, QUANTITY * UNIT_PRICE AS AMOUNT FROM ORDERS WHERE QUANTITY > 0",
+      "SELECT ORDER_ID, QUANTITY * (UNIT_PRICE + 1) AS AMOUNT FROM ORDERS WHERE QUANTITY > 0"
+    ],
+    "property": "Detect a one-cent per-unit overcharge in order amounts"
+  }
+]

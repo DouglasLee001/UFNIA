@@ -1,0 +1,69 @@
+{
+  "repository": "https://github.com/ADAPT-uiuc/TensorRight",
+  "commit": "b3e3a533ff67568db127783cc353ebe04142929f",
+  "archive_url": "https://api.github.com/repos/ADAPT-uiuc/TensorRight/tarball/b3e3a533ff67568db127783cc353ebe04142929f",
+  "archive_sha256": "12ed3f64061a9c8516aa4c30289f938fc63f22934b4ae8d9b127e23e6f8cf434",
+  "license": "Apache-2.0",
+  "license_file": "LICENSE.TensorRight",
+  "sources": [
+    {
+      "path": "rules/xla/slice/Main.hs",
+      "url": "https://github.com/ADAPT-uiuc/TensorRight/blob/b3e3a533ff67568db127783cc353ebe04142929f/rules/xla/slice/Main.hs",
+      "sha256": "587c23f7c85ea757ac91b5f0e863d294cb29f038c220939ca8e52741d561f92e"
+    },
+    {
+      "path": "src/TensorRight/Internal/Core/Tensor/Typed.hs",
+      "url": "https://github.com/ADAPT-uiuc/TensorRight/blob/b3e3a533ff67568db127783cc353ebe04142929f/src/TensorRight/Internal/Core/Tensor/Typed.hs",
+      "sha256": "04b220f9d4943f14427b2f064569c270940d16a3ef7f1e612487f07f3df375d4"
+    }
+  ],
+  "model_relation": "application_derived",
+  "model_limitations": [
+    "Fixed ranks 1..3 in the supplied campaign; positive input extents and nonempty slices",
+    "Nonnegative exterior/interior padding subdomain",
+    "Unbounded integer elements; native Haskell TensorRight and production HLO are not executed",
+    "nested_slice generalizes upstream rule07 beyond its unit-stride preconditions"
+  ],
+  "checker_source_file": "common/smt_tools.py",
+  "checker_sha256": "d16008f5b2b203d79aa33ed03275b32b7c674ad77b45d9df8179ab4bfff855f1",
+  "checker_origin": "Copied unchanged from the validated project SMT checker",
+  "python": "3.10+",
+  "dependencies": {
+    "z3-solver": "4.16.0"
+  },
+  "harder_models": {
+    "generator": "generate_harder.py",
+    "classification": "application_derived",
+    "operators": "Repeated Concat(T, Reverse(T, axis0)), Pad, Reverse and Slice using the fixed-source operation models",
+    "mutation": "The existing naive_mirror rewrite is applied only at the final stage; this is a deliberate source-model mutation, not an upstream production bug",
+    "default_configurations": [
+      {
+        "rank": 2,
+        "depth": 2,
+        "lanes": 2
+      },
+      {
+        "rank": 3,
+        "depth": 3,
+        "lanes": 2
+      }
+    ],
+    "optional_configurations": [
+      {
+        "rank": 2,
+        "depth": 3,
+        "lanes": 3
+      },
+      {
+        "rank": 4,
+        "depth": 4,
+        "lanes": 3
+      }
+    ],
+    "profile": "Shared symbolic strides >=2, positive interior padding, valid equal-shaped outputs and source-data-backed observation tiles",
+    "sat_validation": "Strict QF_UFNIA AST audit, complete explicit integer/total-UF valuation for every original assertion, independent Python operation/coordinate replay",
+    "certificate_policy": "Witness assignments are validation artifacts under /tmp and are never appended to the symbolic formula",
+    "solver_policy": "No solver.check call is used for generation or certificate validation",
+    "limitation": "A restricted application-derived counterexample search; native Haskell TensorRight and production HLO are not executed"
+  }
+}

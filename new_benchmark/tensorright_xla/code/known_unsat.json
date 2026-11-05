@@ -1,0 +1,97 @@
+{
+  "policy": "Exclude only these previously known-UNSAT IDs from direct/default/CLI publication",
+  "basis": "Existing instance set-info status recorded before the user requested removal; no new solver calls",
+  "scope": "tensorright_xla publication only; original models and low-level staging API remain available",
+  "known_unsat": [
+    {
+      "instance_id": "concat_left_rank1",
+      "status": "unsat",
+      "former_instance_sha256": "f2accf19a2c24a94fa0131bde8181512bfafcd1ee4808701a0e202164ef6dafc"
+    },
+    {
+      "instance_id": "concat_left_rank2",
+      "status": "unsat",
+      "former_instance_sha256": "1bda51a3af3f93933ba22a88da58292deaccf0490a33e54bc2af07b34c410ebf"
+    },
+    {
+      "instance_id": "concat_left_rank3",
+      "status": "unsat",
+      "former_instance_sha256": "95ff71f1116e162df23929ad5f712491493b9fb0ed715d2e1a83b3b5746227f2"
+    },
+    {
+      "instance_id": "concat_right_rank1",
+      "status": "unsat",
+      "former_instance_sha256": "5ff207df6c2af1c22f6baf3b3bc67c3c1f9e6e0791a09e07168f5b0a07b5fb53"
+    },
+    {
+      "instance_id": "concat_right_rank2",
+      "status": "unsat",
+      "former_instance_sha256": "53220381f4aa6648174d6753e90a0ac27cf531f8b189d4ee41562596caf19e48"
+    },
+    {
+      "instance_id": "concat_right_rank3",
+      "status": "unsat",
+      "former_instance_sha256": "4d7c6c07a1b2aa16f5cbb7c3b611f3c81960666b4c7663f1d9093678ab2738ff"
+    },
+    {
+      "instance_id": "concat_tail_rank1",
+      "status": "unsat",
+      "former_instance_sha256": "98be2ec93042a18e110862389b5aa5f09803c60cdbf1344fa1d9e405bc62037d"
+    },
+    {
+      "instance_id": "concat_tail_rank2",
+      "status": "unsat",
+      "former_instance_sha256": "6fd993dfba576db7625ed16553a4eddcd1ef7833b88a783d763ddc8eddf2e7b2"
+    },
+    {
+      "instance_id": "concat_tail_rank3",
+      "status": "unsat",
+      "former_instance_sha256": "85b0ac2ba96465762486ce11a806c1a124fffb09c0a626f9668c79124b3bcebb"
+    },
+    {
+      "instance_id": "nested_slice_rank1",
+      "status": "unsat",
+      "former_instance_sha256": "29ef603d598f42a9041153e2a9209e2dcff5f75d2d949dab5b19219012c5536d"
+    },
+    {
+      "instance_id": "nested_slice_rank2",
+      "status": "unsat",
+      "former_instance_sha256": "faaa12bad79ee45652afaa145b9f29801c29b0508935091c6f7f7c8d30c680b7"
+    },
+    {
+      "instance_id": "nested_slice_rank3",
+      "status": "unsat",
+      "former_instance_sha256": "e7d655e626eace7273167d514aa30b9ef0bb788c263d50550271e3963abde857"
+    },
+    {
+      "instance_id": "pad_restore_rank1",
+      "status": "unsat",
+      "former_instance_sha256": "c8cb1f491a37879f114e38d9d256a7cde7b94e1e0d077b3b50636c6d2ad7824a"
+    },
+    {
+      "instance_id": "pad_restore_rank2",
+      "status": "unsat",
+      "former_instance_sha256": "123b8900328b78e38d58ac69d26025795b97c27f2466a746a4feca21d40099f3"
+    },
+    {
+      "instance_id": "pad_restore_rank3",
+      "status": "unsat",
+      "former_instance_sha256": "a8a4cdf6bf22be1cb8c96bc83c1ab3b79cb3892c3c76c8db01b0922c5756bf0e"
+    },
+    {
+      "instance_id": "reverse_slice_rank1",
+      "status": "unsat",
+      "former_instance_sha256": "0bb5773c059f4b16e3c0f52fa3d49b1eb47ddceac60365251c7708fb1a9621de"
+    },
+    {
+      "instance_id": "reverse_slice_rank2",
+      "status": "unsat",
+      "former_instance_sha256": "2f2b085e62549cf82b3d8a05310fa025cb3567587e3bca8f5a0df0924522eef2"
+    },
+    {
+      "instance_id": "reverse_slice_rank3",
+      "status": "unsat",
+      "former_instance_sha256": "ce44c383e9eca41c1b9929c983b45ba609c7ea0059486f15e323fce2ac0c319b"
+    }
+  ]
+}

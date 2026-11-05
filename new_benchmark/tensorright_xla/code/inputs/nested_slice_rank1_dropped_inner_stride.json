@@ -1,0 +1,5 @@
+{
+  "fault": "dropped_inner_stride",
+  "rank": 1,
+  "rule": "nested_slice"
+}

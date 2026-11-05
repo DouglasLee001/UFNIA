@@ -1,0 +1,5 @@
+{
+  "fault": "naive_mirror",
+  "rank": 1,
+  "rule": "reverse_slice"
+}

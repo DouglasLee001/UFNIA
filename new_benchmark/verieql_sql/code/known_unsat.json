@@ -1,0 +1,22 @@
+{
+  "reason": "user_requested_unsat_exclusion",
+  "instance_ids": [
+    "verieql_calcite_149_rows2",
+    "verieql_calcite_149_rows3",
+    "verieql_calcite_149_rows4",
+    "verieql_calcite_211_rows2",
+    "verieql_calcite_244_rows2",
+    "verieql_calcite_244_rows3",
+    "verieql_calcite_244_rows4",
+    "verieql_calcite_262_rows2",
+    "verieql_calcite_264_rows2",
+    "verieql_calcite_281_rows2",
+    "verieql_calcite_77_rows2",
+    "verieql_leetcode_1715_rows2",
+    "verieql_leetcode_1715_rows3",
+    "verieql_leetcode_1715_rows4",
+    "verieql_orders_amount_commute_rows2",
+    "verieql_orders_amount_commute_rows3",
+    "verieql_orders_amount_commute_rows4"
+  ]
+}

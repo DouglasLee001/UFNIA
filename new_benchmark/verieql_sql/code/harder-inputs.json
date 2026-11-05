@@ -1,0 +1,402 @@
+{
+  "max_probe_bound": 24,
+  "cases": [
+    {
+      "case_id": "overcharge",
+      "bounds": [
+        8,
+        12,
+        16,
+        24
+      ],
+      "task": {
+        "schema": {
+          "ORDERS": {
+            "ORDER_ID": "INT",
+            "QUANTITY": "INT",
+            "UNIT_PRICE": "INT"
+          }
+        },
+        "classification": "application_derived",
+        "source_files": [
+          "environment.py",
+          "applications/03_VeriEQL_SQL.md"
+        ],
+        "nonlinearity_meaning": "Orders.quantity times Orders.unit_price: integer-cent order line amount",
+        "task_id": "orders_amount_overcharge",
+        "sql": [
+          "SELECT ORDER_ID, QUANTITY * UNIT_PRICE AS AMOUNT FROM ORDERS WHERE QUANTITY > 0",
+          "SELECT ORDER_ID, QUANTITY * (UNIT_PRICE + 1) AS AMOUNT FROM ORDERS WHERE QUANTITY > 0"
+        ],
+        "property": "Detect a one-cent per-unit overcharge in order amounts"
+      },
+      "key_domains": [],
+      "arithmetic_safety": "No aggregates. INT32 quantity and price imply both emitted products have magnitude below 2^62, including price+1."
+    },
+    {
+      "case_id": "catalog_group_overcharge",
+      "bounds": [
+        2,
+        3,
+        4
+      ],
+      "task": {
+        "classification": "application_derived",
+        "source_files": [
+          "environment.py",
+          "code/harder-inputs.json"
+        ],
+        "source_ids": [
+          "VeriEQL-v1.0",
+          "integer-billing-derived-probes"
+        ],
+        "task_id": "harder_catalog_group_overcharge",
+        "schema": {
+          "ORDERS": {
+            "ORDER_ID": "INT",
+            "CUSTOMER_ID": "INT",
+            "PRODUCT_ID": "INT",
+            "QUANTITY": "INT"
+          },
+          "CATALOG": {
+            "PRODUCT_ID": "INT",
+            "UNIT_PRICE": "INT"
+          }
+        },
+        "constraints": [
+          {
+            "primary": [
+              {
+                "value": "ORDERS__ORDER_ID"
+              }
+            ]
+          },
+          {
+            "primary": [
+              {
+                "value": "CATALOG__PRODUCT_ID"
+              }
+            ]
+          },
+          {
+            "foreign": [
+              {
+                "value": "ORDERS__PRODUCT_ID"
+              },
+              {
+                "value": "CATALOG__PRODUCT_ID"
+              }
+            ]
+          },
+          {
+            "between": [
+              {
+                "value": "ORDERS__CUSTOMER_ID"
+              },
+              1,
+              24
+            ]
+          },
+          {
+            "between": [
+              {
+                "value": "ORDERS__QUANTITY"
+              },
+              1,
+              100
+            ]
+          },
+          {
+            "between": [
+              {
+                "value": "CATALOG__UNIT_PRICE"
+              },
+              1,
+              10000
+            ]
+          }
+        ],
+        "sql": [
+          "SELECT O.CUSTOMER_ID, SUM(O.QUANTITY * P.UNIT_PRICE) AS TOTAL FROM ORDERS O JOIN CATALOG P ON O.PRODUCT_ID = P.PRODUCT_ID GROUP BY O.CUSTOMER_ID",
+          "SELECT O.CUSTOMER_ID, SUM(O.QUANTITY * (P.UNIT_PRICE + 1)) AS TOTAL FROM ORDERS O JOIN CATALOG P ON O.PRODUCT_ID = P.PRODUCT_ID GROUP BY O.CUSTOMER_ID"
+        ],
+        "property": "Detect per-unit catalog overcharge after product-key join and customer grouping",
+        "nonlinearity_meaning": "Order quantity times shared catalog price, aggregated per customer"
+      },
+      "key_domains": [
+        "CATALOG__PRODUCT_ID"
+      ],
+      "arithmetic_safety": "qty<=100, price<=10000; at n<=24 even a conservative n^2-term sum is below 6e8."
+    },
+    {
+      "case_id": "loyalty_wrong_join",
+      "bounds": [
+        2,
+        3,
+        4
+      ],
+      "task": {
+        "classification": "application_derived",
+        "source_files": [
+          "environment.py",
+          "code/harder-inputs.json"
+        ],
+        "source_ids": [
+          "VeriEQL-v1.0",
+          "integer-billing-derived-probes"
+        ],
+        "task_id": "harder_loyalty_wrong_join",
+        "schema": {
+          "ORDERS": {
+            "ORDER_ID": "INT",
+            "CUSTOMER_ID": "INT",
+            "PRODUCT_ID": "INT",
+            "QUANTITY": "INT"
+          },
+          "CATALOG": {
+            "PRODUCT_ID": "INT",
+            "UNIT_PRICE": "INT"
+          },
+          "CUSTOMERS": {
+            "CUSTOMER_ID": "INT",
+            "DISCOUNT_RATE": "INT"
+          }
+        },
+        "constraints": [
+          {
+            "primary": [
+              {
+                "value": "ORDERS__ORDER_ID"
+              }
+            ]
+          },
+          {
+            "primary": [
+              {
+                "value": "CATALOG__PRODUCT_ID"
+              }
+            ]
+          },
+          {
+            "foreign": [
+              {
+                "value": "ORDERS__PRODUCT_ID"
+              },
+              {
+                "value": "CATALOG__PRODUCT_ID"
+              }
+            ]
+          },
+          {
+            "between": [
+              {
+                "value": "ORDERS__CUSTOMER_ID"
+              },
+              1,
+              24
+            ]
+          },
+          {
+            "between": [
+              {
+                "value": "ORDERS__QUANTITY"
+              },
+              1,
+              100
+            ]
+          },
+          {
+            "between": [
+              {
+                "value": "CATALOG__UNIT_PRICE"
+              },
+              1,
+              10000
+            ]
+          },
+          {
+            "primary": [
+              {
+                "value": "CUSTOMERS__CUSTOMER_ID"
+              }
+            ]
+          },
+          {
+            "foreign": [
+              {
+                "value": "ORDERS__CUSTOMER_ID"
+              },
+              {
+                "value": "CUSTOMERS__CUSTOMER_ID"
+              }
+            ]
+          },
+          {
+            "between": [
+              {
+                "value": "CUSTOMERS__DISCOUNT_RATE"
+              },
+              1,
+              30
+            ]
+          }
+        ],
+        "sql": [
+          "SELECT O.CUSTOMER_ID, SUM(O.QUANTITY * P.UNIT_PRICE * (100 - C.DISCOUNT_RATE)) AS CHARGE_NUMERATOR FROM ORDERS O JOIN CATALOG P ON O.PRODUCT_ID = P.PRODUCT_ID JOIN CUSTOMERS C ON O.CUSTOMER_ID = C.CUSTOMER_ID GROUP BY O.CUSTOMER_ID",
+          "SELECT O.CUSTOMER_ID, SUM(O.QUANTITY * P.UNIT_PRICE * (100 - C.DISCOUNT_RATE)) AS CHARGE_NUMERATOR FROM ORDERS O JOIN CATALOG P ON O.PRODUCT_ID = P.PRODUCT_ID JOIN CUSTOMERS C ON O.PRODUCT_ID = C.CUSTOMER_ID GROUP BY O.CUSTOMER_ID"
+        ],
+        "property": "Wrong customer/product join key uses another customer's loyalty rate while complete key domains preserve joined row counts",
+        "nonlinearity_meaning": "Quantity times catalog price times a symbolic loyalty-rate numerator; output units are hundredths of an integer cent, with no division or rounding"
+      },
+      "key_domains": [
+        "CATALOG__PRODUCT_ID",
+        "CUSTOMERS__CUSTOMER_ID"
+      ],
+      "arithmetic_safety": "qty<=100, price<=10000, rate1..30; each cubic charge numerator<=1e8, conservative n^3-term sums at n<=24 below 1.4e12."
+    },
+    {
+      "case_id": "line_discount_pushdown",
+      "bounds": [
+        2,
+        3,
+        4
+      ],
+      "task": {
+        "classification": "application_derived",
+        "source_files": [
+          "environment.py",
+          "code/harder-inputs.json"
+        ],
+        "source_ids": [
+          "VeriEQL-v1.0",
+          "integer-billing-derived-probes"
+        ],
+        "task_id": "harder_line_discount_pushdown",
+        "schema": {
+          "ORDERS": {
+            "ORDER_ID": "INT",
+            "CUSTOMER_ID": "INT",
+            "PRODUCT_ID": "INT",
+            "QUANTITY": "INT"
+          },
+          "CATALOG": {
+            "PRODUCT_ID": "INT",
+            "UNIT_PRICE": "INT"
+          },
+          "CUSTOMERS": {
+            "CUSTOMER_ID": "INT",
+            "DISCOUNT_CENTS": "INT"
+          }
+        },
+        "constraints": [
+          {
+            "primary": [
+              {
+                "value": "ORDERS__ORDER_ID"
+              }
+            ]
+          },
+          {
+            "primary": [
+              {
+                "value": "CATALOG__PRODUCT_ID"
+              }
+            ]
+          },
+          {
+            "foreign": [
+              {
+                "value": "ORDERS__PRODUCT_ID"
+              },
+              {
+                "value": "CATALOG__PRODUCT_ID"
+              }
+            ]
+          },
+          {
+            "between": [
+              {
+                "value": "ORDERS__CUSTOMER_ID"
+              },
+              1,
+              24
+            ]
+          },
+          {
+            "between": [
+              {
+                "value": "ORDERS__QUANTITY"
+              },
+              1,
+              100
+            ]
+          },
+          {
+            "between": [
+              {
+                "value": "CATALOG__UNIT_PRICE"
+              },
+              1,
+              10000
+            ]
+          },
+          {
+            "primary": [
+              {
+                "value": "CUSTOMERS__CUSTOMER_ID"
+              }
+            ]
+          },
+          {
+            "foreign": [
+              {
+                "value": "ORDERS__CUSTOMER_ID"
+              },
+              {
+                "value": "CUSTOMERS__CUSTOMER_ID"
+              }
+            ]
+          },
+          {
+            "between": [
+              {
+                "value": "CUSTOMERS__DISCOUNT_CENTS"
+              },
+              1,
+              1000
+            ]
+          }
+        ],
+        "sql": [
+          "SELECT O.CUSTOMER_ID, SUM(CASE WHEN O.QUANTITY * P.UNIT_PRICE >= 10000 THEN O.QUANTITY * P.UNIT_PRICE - C.DISCOUNT_CENTS ELSE O.QUANTITY * P.UNIT_PRICE END) AS TOTAL FROM ORDERS O JOIN CATALOG P ON O.PRODUCT_ID = P.PRODUCT_ID JOIN CUSTOMERS C ON O.CUSTOMER_ID = C.CUSTOMER_ID GROUP BY O.CUSTOMER_ID",
+          "SELECT O.CUSTOMER_ID, CASE WHEN SUM(O.QUANTITY * P.UNIT_PRICE) >= 10000 THEN SUM(O.QUANTITY * P.UNIT_PRICE) - MAX(C.DISCOUNT_CENTS) ELSE SUM(O.QUANTITY * P.UNIT_PRICE) END AS TOTAL FROM ORDERS O JOIN CATALOG P ON O.PRODUCT_ID = P.PRODUCT_ID JOIN CUSTOMERS C ON O.CUSTOMER_ID = C.CUSTOMER_ID GROUP BY O.CUSTOMER_ID"
+        ],
+        "property": "A per-line 100-dollar eligibility discount was incorrectly moved after customer aggregation",
+        "nonlinearity_meaning": "The symbolic quantity-price product controls per-line discount eligibility and contributes to group sums"
+      },
+      "key_domains": [
+        "CATALOG__PRODUCT_ID",
+        "CUSTOMERS__CUSTOMER_ID"
+      ],
+      "arithmetic_safety": "qty<=100, price<=10000, credit<=1000; each discounted amount has magnitude<=1e6 and n^3-term sums at n<=24 below 1.4e10."
+    }
+  ],
+  "default_probes": [
+    {
+      "case_id": "overcharge",
+      "bound": 12
+    },
+    {
+      "case_id": "overcharge",
+      "bound": 16
+    },
+    {
+      "case_id": "loyalty_wrong_join",
+      "bound": 3
+    },
+    {
+      "case_id": "line_discount_pushdown",
+      "bound": 3
+    }
+  ]
+}

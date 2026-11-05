@@ -1,0 +1,5 @@
+{
+  "fault": "unit_stride",
+  "rank": 2,
+  "rule": "pad_restore"
+}

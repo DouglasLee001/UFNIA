@@ -1,0 +1,27 @@
+{
+  "repository_url": "https://github.com/VeriEQL/VeriEQL",
+  "tag": "v1.0",
+  "commit": "3b99928bf976c11cb59c9db6a177adba21f75798",
+  "retrieval_date": "2026-11-03T11:44:58.600736+00:00",
+  "archive_url": "https://api.github.com/repos/VeriEQL/VeriEQL/tarball/3b99928bf976c11cb59c9db6a177adba21f75798",
+  "archive_sha256": "9732fdaa51356242e5e448950fbf1938959bc8f4439a94f0a552a6f040fa23a2",
+  "archive_bytes": 9749441,
+  "runtime_files_verified": 152,
+  "verification": "Each retained file matches the SHA1 Git blob identity in the official fixed-commit git-tree manifest; SHA256 inventory saved separately",
+  "runtime_inventory": "upstream/runtime-sha256.json",
+  "license": "CC-BY-NC-SA-4.0",
+  "license_file": "upstream/src/license.md",
+  "license_sha256": "e66c269d4819aaab34b49ef5220c4ddab6756f21bb5180761a4eb8561f2b7bbd",
+  "python": "3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]",
+  "z3-solver": "4.16.0.0",
+  "dependency_lock": "requirements-runtime.lock",
+  "compatibility_adapter": "compat.py",
+  "input_paths": [
+    "benchmarks/calcite/calcite2.jsonlines",
+    "benchmarks/literature/literature-rewrite.jsonlines",
+    "benchmarks/leetcode/leetcode.jsonlines"
+  ],
+  "exported_artifact_license_status": "license_review_required",
+  "local_source": "upstream/src",
+  "archive_file": "upstream/source-full.tar.gz"
+}

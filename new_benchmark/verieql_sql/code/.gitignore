@@ -1,0 +1,7 @@
+vendor/
+upstream/
+.venv/
+__pycache__/
+*.py[cod]
+.pip-cache/
+.pytest_cache/

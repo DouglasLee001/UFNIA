@@ -1,0 +1,22 @@
+{
+  "spec/checkpoints.qnt": "d9c66f4d216b2c2295dd1bad4163b5d6e83271e21e881af454eeba90fa29243a",
+  "spec/empire_base.qnt": "68ff978f2dd2258000d4a118a51fc98cb4034537fb14d63f3c4ba6cba57065d0",
+  "spec/erc20.qnt": "2db43071ef2c1feb28405d6945b59fa26595f36d96e847abca1bc589f732e305",
+  "spec/governance.qnt": "a59c74457258b22db3e3e573f22935e8371a4cbe7efbb0bdd95b3dc22b18191c",
+  "spec/governance_proposer.qnt": "0d41120629fa9fde875e5dde4be792cb8bb8877f53cd887124abbcd34988c98b",
+  "spec/governance_proposer_props.qnt": "d97fe2976014e97e577f6df5b63f34630621e660f896bdbc0aefba257a901be5",
+  "spec/governance_props.qnt": "1e1a4f03f34fb433818395efc30f487e090b7d7fcd77468f2a1197dbcccbe540",
+  "spec/gse.qnt": "d6749d6db01a8659b9dcef629a2df92e2b4123d92d6fea43d458720398c5b5f7",
+  "spec/gse_payload.qnt": "4188bf2ca36b3e87d53201cb6efee375f8f5cbdabd2a35c50ee1c6e126e40d4d",
+  "spec/gse_props.qnt": "00644105f3e01eb343702b0b4c292e6b10ec808ada0b908397231740fb2585c6",
+  "spec/invariant.qnt": "18d923aa8bb12aa2a56cfccc82ff14e5184681d223b8bc2584c5d7cfaae5b327",
+  "spec/invariant_model.qnt": "22b372395c03365090ddc329b560ea9e61cf6a1953c0fedf5a293ecd4fe8c4f1",
+  "spec/libraries.qnt": "189d981a7fbcab3d94b168fe6e9044fad12e87e9cafdfa00009b2087cb0c464b",
+  "spec/registry.qnt": "beab4fc345a17cc08c9bccb5f83b866ef8b632de1b2cfad70a26d7904e5f9dab",
+  "spec/reward_distributor.qnt": "073960a3bc3e8c8fdb053e7874440355b50d751aa0c717d4bbd0869032442c85",
+  "spec/slasher.qnt": "4ea06670ebd4594c11ad32d719807f1af742784ed3766ae03bd2d89c003191de",
+  "spec/slashing_proposer.qnt": "09aef9d4d5a60f1059611cb49b3bafd9d783056d762c5fbf25d12c0d184b5134",
+  "spec/slashing_proposer_machine.qnt": "454a33559431cce68801fd27e3e7ad24f77cd31aaee95cdb9f111681483b1247",
+  "spec/slashing_proposer_props.qnt": "10ecb782f62407f342501a5a772f7054754a73df3d9a138dc43c3eba9133497a",
+  "spec/types.qnt": "d26addfc60a52095480ae2930abec92eb2ab5f982b4cff4e07900d3e1f697ef1"
+}

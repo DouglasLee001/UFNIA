@@ -1,0 +1,44 @@
+{
+  "aztec": {
+    "repository": "https://github.com/konnov/aztec-governance-formal-verification-2025q3",
+    "commit": "6fee2e4f6dbbe632cf62b411e344e1a008642cd7",
+    "archive": "deps/aztec-6fee2e4.tar.gz",
+    "sha256": "e7b53de9a93320d7dd6417fb65b21ea48e49dd5b111f0621f2df1fb9a7da0b50",
+    "license": "Apache-2.0",
+    "aztec_packages_submodule": "8b10b2b220de38c9e2e2e2b7d05d7383701ba070",
+    "submodule_materialized": false,
+    "submodule_needed_for_quint_typecheck": false
+  },
+  "node": {
+    "version": "22.23.4",
+    "url": "https://nodejs.org/dist/v22.23.4/node-v22.23.4-linux-x64.tar.xz",
+    "sha256": "1805bcd35e6815559bd2eb97db438d3fdb0eb3a5e6a977b7c1badca76337e9ce",
+    "publisher_checksum_verified": true,
+    "archive": "deps/node-v22.23.4-linux-x64.tar.xz"
+  },
+  "quint": {
+    "version": "0.33.1",
+    "url": "https://registry.npmjs.org/@informalsystems/quint/-/quint-0.33.1.tgz",
+    "sha256": "a219b8566a2e559840a46ee85fc70e7e202c7c02e01e3eb9d393fa32ef692bd6",
+    "dependencies_lock": "package-lock.json",
+    "license": "Apache-2.0",
+    "commit": "3eaa85fc01820ea25bd7cb7baee0bb8d5c02c8b0",
+    "dist_integrity": "sha512-EYsgxr9SEsumYiix6pD8jbXPiPJoNbQaUxnrLE+dSVL+B9eQHPkVjSW7CBFEoBeMhau/1n70DAQOKvgxa1pVfw==",
+    "repository": "git+https://github.com/quint-co/quint.git"
+  },
+  "apalache": {
+    "version": "0.62.4",
+    "commit": "7954daf7563a69cce9d0b89c8542e40bf46f7c6e",
+    "url": "https://github.com/apalache-mc/apalache/releases/download/v0.62.4/apalache.tgz",
+    "official_api_asset": "https://api.github.com/repos/apalache-mc/apalache/releases/assets/633378609",
+    "expected_size": 192038403,
+    "expected_sha256": "8ac8488422c30d552735bae11b92a2d014d8e02e8608702acc08f9a2d8a9abb2",
+    "state": "downloaded_verified",
+    "publisher_checksum_verified": true,
+    "completed_range_parts": 184,
+    "downloaded_range_bytes": 192038403,
+    "last_attempt_returncode": 0,
+    "last_attempt_timed_out": false,
+    "archive": "deps/apalache-0.62.4.tgz"
+  }
+}
