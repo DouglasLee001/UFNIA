@@ -77,7 +77,6 @@ void NativeInput::read(const std::string& path,bool allow_uf){
 
 }
 void NativeInput::install(ls_solver& s) const {
- s.clear_affine_footprint_cache();
  s._num_lits=atoms.size();s._lits.resize(atoms.size());s._num_vars=0;s._num_nia_vars=0;s._num_nia_lits=0;s._num_bool_lits=0;s._step=0;s._outer_layer_step=0;
  auto variable_id=[&](const std::string& name,bool arithmetic){auto found=s.name2var.find(name);if(found!=s.name2var.end()){if(s._vars[found->second].is_nia!=arithmetic)throw std::runtime_error("mixed Boolean/integer symbol: "+name);return found->second;}size_t id=s._vars.size();variable v{};v.var_name=name;v.is_nia=arithmetic;v.score=0;s._vars.push_back(v);s.name2var[name]=id;if(arithmetic)s.nia_var_vec.push_back(id);else s.bool_var_vec.push_back(id);return id;};
  std::map<Monomial,size_t> term_ids;

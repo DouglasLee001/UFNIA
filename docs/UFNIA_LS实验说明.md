@@ -1,3 +1,7 @@
+# 当前运行版本
+
+2026-11-12：已按全集消融结论删除footprint缓存，当前mature保留单自由根affine。下列当前运行命令已移除旧缓存环境变量；精确数值预检、CNF／UF评分和原式模型验证继续执行。新版已在node2正常O2构建并通过8模块71项回归，node3脚本语法／dry-run通过；本次未启动新的全量性能轮。全集419／419／413的三组成绩及原命令绑定旧冻结快照，见[完整消融报告](../运行文档/QF_UFNIA组件消融实验报告.md)；以下旧a6／70／191说明为历史记录。
+
 # 最新全量正式结果
 
 2026-11-03，当前清理版a6在node3全572／每例端到端600／实际峰180：419有效SAT、153timeout，独立审计通过。原v12为413，本轮新增9、未复现3、净增6；20240410为68／191，历史该子集最好70仍保留。[本轮报告](../result/best_node3_all_600_20261103_161710_HtUKw3/REPORT.md)。旧reserve48GiB、本轮24GiB，不把总耗时差异单归算法。下文较早“尚未重跑全量”属于此前状态，当前编译和运行命令继续可用。
@@ -9,7 +13,7 @@
 ~~~bash
 cd /home/lbh/smt/ufnia
 make -C UFNIA_LS mature
-UFNIA_AFFINE_VIEWS=1 UFNIA_AFFINE_FOOTPRINT_CACHE=1 UFNIA_AFFINE_PROGRESS=1 \
+UFNIA_AFFINE_VIEWS=1 UFNIA_AFFINE_PROGRESS=1 \
 timeout --signal=KILL 600s ./run.sh INPUT.smt2 \
   --backend mature --uf-observers --interaction joint --scoring paws \
   --seed 0 --seconds 600 --preprocess-timeout 600

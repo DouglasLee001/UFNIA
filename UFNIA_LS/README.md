@@ -1,17 +1,19 @@
-# 当前保留版本：70／191策略
+# 当前保留版本：单自由根仿射视图
 
-2026-11-03：主目录mature已同步历史最佳POINT-OFF的单自由根affine＋精确footprint cache，移除POINT实验接线与源文件。mature默认开启affine/cache；默认Python后端仍为core，使用最佳策略请显式指定下列参数。
+2026-11-12：根据全集消融结果，已删除精确footprint cache的实现、环境开关和诊断字段，保留单自由根affine。默认Python后端仍为core，使用当前mature策略请显式指定下列参数。
 
 编译：make -C UFNIA_LS mature。node2无系统GMP开发包时，Makefile使用build/ufnia_ls/deps/gmp内的私有静态GMP（保留来源与版权）。
 
 ~~~bash
-UFNIA_AFFINE_VIEWS=1 UFNIA_AFFINE_FOOTPRINT_CACHE=1 UFNIA_AFFINE_PROGRESS=1 \
+UFNIA_AFFINE_VIEWS=1 UFNIA_AFFINE_PROGRESS=1 \
 timeout --signal=KILL 600s ./run.sh INPUT.smt2 \
   --backend mature --uf-observers --interaction joint --scoring paws \
   --seed 0 --seconds 600 --preprocess-timeout 600
 ~~~
 
-原70／191成绩绑定[原最佳冻结目录](../result/certora2024/snapshots/affine_point_units_v1/snapshot.json)的28cf0f1f…；主目录删除死分支后新构建为a6e8de9a…，已通过原66＋新4共70项回归，并未重新做完整191性能轮。较差实验实现与编译副本已移除，结果和结论文档保留，见[清理记录](../result/cleanup_best_20261103/REPORT.md)。
+最近完整消融使用同一旧冻结二进制：affine/cache为1/1、1/0、0/0时分别419、419、413 SAT；缓存一进一出，净增0。见[全集消融报告](../运行文档/QF_UFNIA组件消融实验报告.md)。这些成绩归原冻结版本；本次删除代码没有重跑全量性能实验。原70／191快照、消融快照及结果保留。
+
+删除后已在node2正常O2编译，并通过8个模块共71项回归；新binary为f91cf2b7…。node3脚本语法和dry-run均通过。
 
 以下为保留的原有接口、模型语义和历史验收说明。
 

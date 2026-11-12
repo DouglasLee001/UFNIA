@@ -15,14 +15,13 @@ int main(int argc,char** argv){
    else if(option=="--model-output")model=value;else throw std::runtime_error("unknown option: "+option);
   }
   if(!uf&&(interaction_set||scoring_set))throw std::runtime_error("interaction/scoring require --uf-observers");
-  bool affine_requested=true,cache_requested=true,progress_requested=false;
+  bool affine_requested=true,progress_requested=false;
   if(const char* flag=std::getenv("UFNIA_AFFINE_VIEWS"))affine_requested=std::string(flag)!="0";
-  if(const char* flag=std::getenv("UFNIA_AFFINE_FOOTPRINT_CACHE"))cache_requested=std::string(flag)=="1";
   if(const char* flag=std::getenv("UFNIA_AFFINE_PROGRESS"))progress_requested=std::string(flag)=="1";
   nia::NativeInput source;source.read(input,uf);
   auto configure=[&](nia::ls_solver& solver,bool progress){
    solver.uf_enabled=uf;solver.uf_interaction=interaction;solver.uf_scoring=scoring;
-   solver.affine_enabled=affine_requested;solver.affine_footprint_cache_enabled=cache_requested;
+   solver.affine_enabled=affine_requested;
    if(progress_requested){
     solver.affine_progress_enabled=progress;size_t slash=input.find_last_of('/');
     const std::string directory=slash==std::string::npos?"":input.substr(0,slash+1),filename=slash==std::string::npos?input:input.substr(slash+1);
@@ -31,7 +30,7 @@ int main(int argc,char** argv){
   };
   auto run_loaded=[&](nia::ls_solver& solver)->int{
   solver._cutoff=seconds;
-  if(parse){std::cout<<"{\"status\":\"parsed\",\"backend\":\"mature_mpz\",\"backend_version\":\""<<version<<"\",\"atoms\":"<<source.atoms.size()-1<<",\"vars\":"<<solver._num_vars<<",\"clauses\":"<<solver._num_clauses<<",\"max_numeral_bits\":"<<source.max_numeral_bits<<",\"uf_observers\":"<<(uf?"true":"false")<<",\"uf_applications\":"<<solver.uf_applications.size()<<",\"affine_views_enabled\":"<<(solver.affine_enabled?"true":"false")<<solver.affine_footprint_cache_report()<<",\"affine_components\":"<<solver.affine_views.size()<<",\"affine_derived\":"<<solver.affine_derived<<"}\n";return 0;}
+  if(parse){std::cout<<"{\"status\":\"parsed\",\"backend\":\"mature_mpz\",\"backend_version\":\""<<version<<"\",\"atoms\":"<<source.atoms.size()-1<<",\"vars\":"<<solver._num_vars<<",\"clauses\":"<<solver._num_clauses<<",\"max_numeral_bits\":"<<source.max_numeral_bits<<",\"uf_observers\":"<<(uf?"true":"false")<<",\"uf_applications\":"<<solver.uf_applications.size()<<",\"affine_views_enabled\":"<<(solver.affine_enabled?"true":"false")<<",\"affine_components\":"<<solver.affine_views.size()<<",\"affine_derived\":"<<solver.affine_derived<<"}\n";return 0;}
   bool found=seconds>0&&solver.local_search();bool valid=found&&source.validate(solver);
   if(solver.affine_progress_enabled)solver.maybe_write_affine_progress(solver.initialization_round?solver.TimeElapsed():0,true);
   if(valid&&!model.empty()){std::ofstream file(model);if(!file)throw std::runtime_error("cannot write model");file<<"{";bool first=true;for(size_t i=0;i<solver._num_vars;++i){if(!first)file<<",";first=false;file<<nia::json_string(solver._vars[i].var_name)<<":";if(solver._vars[i].is_nia)file<<nia::json_string(solver._solution[i].get_str());else file<<(solver._solution[i]>0?"true":"false");}for(const auto& [name,value]:source.restored){if(solver.name2var.count(name))continue;if(!first)file<<",";first=false;file<<nia::json_string(name)<<":"<<nia::json_string(value.get_str());}file<<"}\n";if(!file)throw std::runtime_error("model write failed");}
@@ -47,7 +46,6 @@ int main(int argc,char** argv){
            <<",\"uf_only_iterations\":"<<solver.uf_only_iterations<<",\"uf_only_weight_updates\":"<<solver.uf_only_weight_updates<<",\"uf_weight\":"<<solver.uf_weight
            <<",\"uf_tabu_rejections\":"<<solver.uf_tabu_rejections<<",\"uf_aspirations\":"<<solver.uf_aspirations<<",\"uf_tabu_overrides\":"<<solver.uf_tabu_overrides<<",\"uf_tabu_waits\":"<<solver.uf_tabu_waits
            <<",\"affine_views_enabled\":"<<(solver.affine_enabled?"true":"false")<<",\"affine_views_policy\":"<<nia::json_string(solver.affine_enabled?"persistent_native_tree_v1":"v12_scalar")
-           <<solver.affine_footprint_cache_report()
            <<",\"affine_applicable\":"<<(solver.affine_installed()?"true":"false")<<",\"affine_components\":"<<solver.affine_views.size()<<",\"affine_derived\":"<<solver.affine_derived
            <<",\"affine_build_components\":"<<solver.affine_build_components<<",\"affine_skip_math\":"<<solver.affine_skip_math<<",\"affine_skip_size\":"<<solver.affine_skip_size<<",\"affine_skip_no_root\":"<<solver.affine_skip_no_root<<",\"affine_skip_domain\":"<<solver.affine_skip_domain<<",\"affine_skip_bits\":"<<solver.affine_skip_bits
            <<",\"affine_skip_footprint\":"<<solver.affine_skip_footprint<<",\"affine_skip_numeric\":"<<solver.affine_skip_numeric<<",\"affine_proposals\":"<<solver.affine_proposals<<",\"affine_scores\":"<<solver.affine_scores<<",\"affine_commits\":"<<solver.affine_commits<<",\"affine_rejections\":"<<solver.affine_rejections

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Launch the retained best strategy on every case in the SAT benchmark collection.
+# Launch the retained affine-view strategy on every SAT benchmark.
 set -euo pipefail
 
 ufnia_script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
@@ -55,7 +55,7 @@ else
 fi
 
 ufnia_command=(
-  env UFNIA_AFFINE_VIEWS=1 UFNIA_AFFINE_FOOTPRINT_CACHE=1
+  env UFNIA_AFFINE_VIEWS=1
   UFNIA_AFFINE_PROGRESS=1 PYTHONDONTWRITEBYTECODE=1
   "$ufnia_python" -B "$ufnia_script_dir/run_ufnia_experiments.py"
   --solver-root "$ufnia_root"

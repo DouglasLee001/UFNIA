@@ -1,20 +1,11 @@
 #include "nia_ls.h"
 #include <stdexcept>
-#include <limits>
-#include <type_traits>
 namespace nia {
-struct AffineFootprint {
+namespace {
+struct Footprint {
  std::set<size_t> terms,literals,clauses,apps,score_literals,score_terms;
  size_t raw_slots=0,repeat_coeff_slots=0,all_coeff_slots=0;
 };
-#ifdef NIA_AFFINE_FOOTPRINT_TEST_OBSERVER
-#define AFFINE_OBSERVE(s,field,amount) ((s).affine_footprint_test_observer.field+=(amount))
-#else
-#define AFFINE_OBSERVE(s,field,amount) ((void)0)
-#endif
-namespace {
-using Footprint=AffineFootprint;
-static_assert(std::is_nothrow_move_constructible<Footprint>::value,"cache transfer preserves slow-path footprint on allocation failure");
 constexpr size_t max_variables=262144,max_input_clauses=1048576,max_unit_edges=131072,max_mapped=65536;
 constexpr size_t max_terms=16,max_literals=128,max_clauses=256,max_apps=64,max_raw_slots=8192;
 constexpr size_t max_score_literals=8192,max_score_terms=4096,max_factor_slots=65536,max_coeff_slots=65536;
@@ -24,41 +15,38 @@ struct Limit {bool numeric=false;};
 
 size_t nbits(const Int& x){return affine::bits(x);}
 Footprint footprint(const ls_solver& s,const std::vector<size_t>& vars,size_t multiplier=1){
- AFFINE_OBSERVE(s,builds,1);
  Footprint f;
- for(size_t v:vars){AFFINE_OBSERVE(s,static_slots,1);
+ for(size_t v:vars){
   const auto& a=s._vars[v];
   if(a.term_exps.size()>max_terms*multiplier||a.literal_idxs.size()>max_literals*multiplier||a.clause_idxs.size()>max_clauses*multiplier)throw Limit{};
-  for(const auto& te:a.term_exps){AFFINE_OBSERVE(s,static_slots,1);f.terms.insert(te.term_idx);f.raw_slots+=s._terms[te.term_idx].var_epxs.size();}
+  for(const auto& te:a.term_exps){f.terms.insert(te.term_idx);f.raw_slots+=s._terms[te.term_idx].var_epxs.size();}
   f.raw_slots+=a.var_lit_terms.size();
-  AFFINE_OBSERVE(s,static_slots,a.literal_idxs.size());
   f.literals.insert(a.literal_idxs.begin(),a.literal_idxs.end());
-  for(int c:a.clause_idxs){AFFINE_OBSERVE(s,static_slots,1);f.clauses.insert(size_t(c));f.raw_slots+=s._clauses[c].literals.size();}
+  for(int c:a.clause_idxs){f.clauses.insert(size_t(c));f.raw_slots+=s._clauses[c].literals.size();}
   if(s.uf_enabled){
    if(s.variable_applications[v].size()>max_apps*multiplier)throw Limit{};
-   for(size_t id:s.variable_applications[v]){AFFINE_OBSERVE(s,static_slots,1);f.apps.insert(id);f.raw_slots+=s.uf_applications[id].arguments.size()+1;}
+   for(size_t id:s.variable_applications[v]){f.apps.insert(id);f.raw_slots+=s.uf_applications[id].arguments.size()+1;}
   }
   if(f.raw_slots>max_raw_slots*multiplier)throw Limit{};
  }
  if(f.terms.size()>max_terms*multiplier||f.literals.size()>max_literals*multiplier||f.clauses.size()>max_clauses*multiplier||f.apps.size()>max_apps*multiplier)throw Limit{};
  f.score_literals=f.literals;f.score_terms=f.terms;
- for(size_t c:f.clauses)for(int li:s._clauses[c].literals){AFFINE_OBSERVE(s,static_slots,1);size_t id=std::abs(li);f.score_literals.insert(id);f.repeat_coeff_slots+=s._lits[id].coff_terms.size();if(f.repeat_coeff_slots>max_coeff_slots*multiplier)throw Limit{};}
+ for(size_t c:f.clauses)for(int li:s._clauses[c].literals){size_t id=std::abs(li);f.score_literals.insert(id);f.repeat_coeff_slots+=s._lits[id].coff_terms.size();if(f.repeat_coeff_slots>max_coeff_slots*multiplier)throw Limit{};}
  if(f.score_literals.size()>max_score_literals*multiplier)throw Limit{};
- for(size_t li:f.score_literals){AFFINE_OBSERVE(s,static_slots,1);const auto& l=s._lits[li];
+ for(size_t li:f.score_literals){const auto& l=s._lits[li];
   if(l.coff_terms.size()>max_coeff_slots*multiplier-f.all_coeff_slots)throw Limit{};
   f.all_coeff_slots+=l.coff_terms.size();
-  for(const auto& ct:l.coff_terms){AFFINE_OBSERVE(s,static_slots,1);f.score_terms.insert(ct.term_idx);if(f.score_terms.size()>max_score_terms*multiplier)throw Limit{};}
+  for(const auto& ct:l.coff_terms){f.score_terms.insert(ct.term_idx);if(f.score_terms.size()>max_score_terms*multiplier)throw Limit{};}
  }
- size_t factors=0;for(size_t t:f.score_terms){AFFINE_OBSERVE(s,static_slots,1);factors+=s._terms[t].var_epxs.size();if(factors>max_factor_slots*multiplier)throw Limit{};}
+ size_t factors=0;for(size_t t:f.score_terms){factors+=s._terms[t].var_epxs.size();if(factors>max_factor_slots*multiplier)throw Limit{};}
  return f;
 }
 void numeric_preflight(const ls_solver& s,const Footprint& f,const ls_solver::UfPatch& p,const std::vector<size_t>* extra=nullptr){
- AFFINE_OBSERVE(s,numeric_calls,1);
  std::map<size_t,size_t> term_bounds;
- for(size_t t:f.score_terms){AFFINE_OBSERVE(s,numeric_slots,1);
+ for(size_t t:f.score_terms){
   size_t bound=1;const auto& term=s._terms[t];
   if(s.initialization_round&&nbits(term.value)>intermediate_bits)throw Limit{true};
-  for(const auto& e:term.var_epxs){AFFINE_OBSERVE(s,numeric_slots,1);
+  for(const auto& e:term.var_epxs){
    if(e.exponent<1||size_t(e.exponent)>max_exponent)throw Limit{true};
    size_t v=e.var_index,old_bits=nbits(s._solution[v]);auto target=p.find(v);
    size_t future=target==p.end()?old_bits:nbits(target->second);
@@ -70,11 +58,11 @@ void numeric_preflight(const ls_solver& s,const Footprint& f,const ls_solver::Uf
   }
   term_bounds[t]=bound;
  }
- for(size_t li:f.score_literals){AFFINE_OBSERVE(s,numeric_slots,1);
+ for(size_t li:f.score_literals){
   const auto& l=s._lits[li];if(!l.is_nia_lit)continue;
   if(nbits(l.key)>input_bits||(s.initialization_round&&nbits(l.delta)>intermediate_bits))throw Limit{true};
   size_t maximum=nbits(l.key);
-  for(const auto& ct:l.coff_terms){AFFINE_OBSERVE(s,numeric_slots,1);
+  for(const auto& ct:l.coff_terms){
    if(nbits(ct.coff)>input_bits)throw Limit{true};
    size_t a=term_bounds.at(ct.term_idx),b=nbits(ct.coff);if(a>intermediate_bits-b)throw Limit{true};maximum=std::max(maximum,a+b);
   }
@@ -83,7 +71,7 @@ void numeric_preflight(const ls_solver& s,const Footprint& f,const ls_solver::Uf
  if(s.uf_enabled){
   if(s.uf_applications.size()>max_uf_table)throw Limit{true};
   for(size_t id:f.apps){const auto& app=s.uf_applications[id];if(app.arguments.size()+1>max_raw_slots)throw Limit{true};
-   auto check=[&](size_t v){AFFINE_OBSERVE(s,numeric_slots,1);auto t=p.find(v);if(nbits(s._solution[v])>input_bits||(t!=p.end()&&nbits(t->second)>input_bits)||(extra&&extra->at(v)>input_bits))throw Limit{true};};
+   auto check=[&](size_t v){auto t=p.find(v);if(nbits(s._solution[v])>input_bits||(t!=p.end()&&nbits(t->second)>input_bits)||(extra&&extra->at(v)>input_bits))throw Limit{true};};
    for(size_t v:app.arguments)check(v);check(app.result);
   }
  }
@@ -111,7 +99,6 @@ bool multiply_add(const Int& a,const Int& x,const Int& b,Int& out){
 }
 }
 void ls_solver::prepare_affine_views(){
- clear_affine_footprint_cache();
  if(!affine_enabled)return;
  AffineTime timing(&affine_build_ns);
  if(_num_vars>max_variables||_clauses.size()>max_input_clauses||(uf_enabled&&uf_applications.size()>max_uf_table)){++affine_skip_footprint;return;}
@@ -181,86 +168,15 @@ bool ls_solver::normalize_affine_patch(const UfPatch& requests,UfPatch& material
  if(canonical)*canonical=std::move(free);
  return !materialized.empty();
 }
-std::string ls_solver::affine_footprint_cache_report()const{
- return std::string(",\"affine_footprint_cache_enabled\":")+(affine_footprint_cache_enabled?"true":"false")
-  +",\"affine_footprint_cache_policy\":\"single_view_footprint_v1\""
-  +",\"affine_footprint_cache_entry_limit\":64,\"affine_footprint_cache_charge_limit\":4194304"
-  +",\"affine_footprint_cache_hits\":"+std::to_string(affine_footprint_cache_hits)
-  +",\"affine_footprint_cache_misses\":"+std::to_string(affine_footprint_cache_misses)
-  +",\"affine_footprint_cache_fallbacks\":"+std::to_string(affine_footprint_cache_fallbacks)
-  +",\"affine_footprint_cache_inserts\":"+std::to_string(affine_footprint_cache_inserts)
-  +",\"affine_footprint_cache_entries\":"+std::to_string(affine_footprint_cache_entries)
-  +",\"affine_footprint_cache_charged_bytes\":"+std::to_string(affine_footprint_cache_bytes);
-}
-void ls_solver::clear_affine_footprint_cache(){
- for(auto& entry:affine_footprint_cache)entry=AffineFootprintEntry{};
- affine_footprint_cache_entries=0;affine_footprint_cache_bytes=0;
- ++affine_footprint_structure_generation;
-}
-const std::set<size_t>& ls_solver::affine_footprint_clauses(const AffineFootprintHandle& owner)const{return owner->clauses;}
-const std::set<size_t>& ls_solver::affine_footprint_literals(const AffineFootprintHandle& owner)const{return owner->literals;}
-bool ls_solver::preflight_affine_patch(const UfPatch& patch,AffineFootprintHandle* retained)const{
- if(retained)retained->reset();
+bool ls_solver::preflight_affine_patch(const UfPatch& patch)const{
  if(patch.empty()||patch.size()>max_native_patch)return false;
  try{
   for(const auto& [v,x]:patch){
    if(v>=_num_vars||!scalar_domain(*this,v,x)||nbits(x)>input_bits)return false;
    if(config.strategy==SlsStrategy::corebip&&core_locked.size()>v&&core_locked[v])return false;
   }
-  // Callers normalize and check all desired values before entering this path.
-  // The actual changed IDs must equal every nonconstant member of one view.
-  int view_id=-1;
-  if(affine_footprint_cache_enabled&&affine_installed()){
-   const size_t first=patch.begin()->first;
-   if(first<affine_component.size())view_id=affine_component[first];
-   if(view_id>=0){
-    const auto& view=affine_views[size_t(view_id)];
-    if(patch.size()!=view.members.size()||!patch.count(view.root)||patch.at(view.root)==_solution[view.root])view_id=-1;
-    else for(const auto& member:view.members){
-     auto found=patch.find(member.variable);
-     if(member.a==0||found==patch.end()||found->second==_solution[member.variable]||affine_component[member.variable]!=view_id){view_id=-1;break;}
-    }
-   }
-  }
-  if(view_id>=0){
-   for(size_t i=0;i<affine_footprint_cache_entries;++i){const auto& entry=affine_footprint_cache[i];
-    if(entry.view!=size_t(view_id)||entry.generation!=affine_footprint_structure_generation||entry.multiplier!=max_macro_components||entry.members.size()!=patch.size())continue;
-    auto actual=patch.begin();bool equal=true;for(size_t member:entry.members){if(actual->first!=member){equal=false;break;}++actual;}
-    if(equal){++affine_footprint_cache_hits;numeric_preflight(*this,*entry.owner,patch);if(retained)*retained=entry.owner;return true;}
-   }
-   ++affine_footprint_cache_misses;
-  }else if(affine_footprint_cache_enabled)++affine_footprint_cache_fallbacks;
-  // Original builder allocations and semantic exceptions remain outside the
-  // cache-only allocation catch. Static failures are never retained.
   auto f=footprint(*this,variables(patch),max_macro_components);
-  AffineFootprintHandle owner;
-  if(view_id>=0){
-   constexpr size_t byte_limit=4*1024*1024,node_charge=128,owner_charge=128;
-   size_t charge=affine_footprint_cache_entries?size_t(affine_footprint_cache_bytes):sizeof(affine_footprint_cache);
-   auto add=[&](size_t n){if(n>byte_limit||charge>byte_limit-n)return false;charge+=n;return true;};
-   const size_t nodes=f.terms.size()+f.literals.size()+f.clauses.size()+f.apps.size()+f.score_literals.size()+f.score_terms.size();
-   bool room=affine_footprint_cache_entries<affine_footprint_cache.size()&&nodes<=byte_limit/node_charge;
-   room=room&&add(nodes*node_charge)&&add(sizeof(Footprint)+owner_charge);
-   if(room){
-    try{
-#ifdef NIA_AFFINE_FOOTPRINT_TEST_OBSERVER
-     if(affine_footprint_test_fail_allocation)throw std::bad_alloc();
-#endif
-     std::vector<size_t> ids;ids.reserve(patch.size());for(const auto& [id,value]:patch){(void)value;ids.push_back(id);}
-     room=ids.capacity()<=byte_limit/sizeof(size_t)&&add(ids.capacity()*sizeof(size_t));
-     if(room){
-      // The only allocation left occurs before the nonthrowing set moves.
-      owner=std::make_shared<Footprint>(std::move(f));
-      auto& entry=affine_footprint_cache[size_t(affine_footprint_cache_entries)];
-      entry.view=size_t(view_id);entry.generation=affine_footprint_structure_generation;entry.multiplier=max_macro_components;
-      entry.members=std::move(ids);entry.owner=owner;
-      ++affine_footprint_cache_entries;++affine_footprint_cache_inserts;affine_footprint_cache_bytes=charge;
-     }
-    }catch(const std::bad_alloc&){room=false;}
-   }
-   if(!owner)++affine_footprint_cache_fallbacks;
-  }
-  numeric_preflight(*this,owner?*owner:f,patch);if(retained)*retained=owner;return true;
+  numeric_preflight(*this,f,patch);return true;
  }catch(const Limit&){return false;}
 }
 bool ls_solver::verify_affine()const{
@@ -403,7 +319,6 @@ void ls_solver::maybe_write_affine_progress(double elapsed,bool final){
       <<",\"best_total_uf_conflicts\":"<<(best_total_uf_conflicts==UINT64_MAX?"null":std::to_string(best_total_uf_conflicts))
       <<",\"affine_views_enabled\":"<<(affine_enabled?"true":"false")
       <<",\"affine_views_policy\":\""<<(affine_enabled?"persistent_native_tree_v1":"v12_scalar")<<"\""
-      <<affine_footprint_cache_report()
       <<",\"affine_applicable\":"<<(affine_installed()?"true":"false")
       <<",\"affine_components\":"<<affine_views.size()<<",\"affine_derived\":"<<affine_derived
       <<",\"affine_build_components\":"<<affine_build_components<<",\"affine_skip_math\":"<<affine_skip_math

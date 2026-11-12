@@ -1,4 +1,4 @@
-"""Check the supported mature defaults using only synthetic zero-budget input."""
+"""Check retained affine views and the removal of the optional footprint cache."""
 import json
 import os
 from pathlib import Path
@@ -33,43 +33,47 @@ class MatureBestConfigurationTests(unittest.TestCase):
             progress = list(work.glob("affine-*.report.json"))
             return result, [json.loads(path.read_text()) for path in progress]
 
-    def test_default_mature_enables_affine_views_and_footprint_cache(self):
+    def assert_no_footprint_cache_fields(self, result):
+        self.assertFalse(any(key.startswith("affine_footprint_cache_") for key in result))
+
+    def test_default_mature_enables_affine_views(self):
         result, progress = self.run_configuration()
-        self.assertIn("affine_views_enabled", result)
         self.assertTrue(result["affine_views_enabled"])
-        self.assertIn("affine_footprint_cache_enabled", result)
-        self.assertTrue(result["affine_footprint_cache_enabled"])
-        self.assertEqual(result["affine_footprint_cache_policy"], "single_view_footprint_v1")
         self.assertGreater(result["affine_components"], 0)
+        self.assert_no_footprint_cache_fields(result)
         self.assertEqual(progress, [])
 
-    def test_explicit_environment_can_disable_affine_and_cache(self):
-        result, progress = self.run_configuration(
-            {"UFNIA_AFFINE_VIEWS": "0", "UFNIA_AFFINE_FOOTPRINT_CACHE": "0"})
-        self.assertIn("affine_views_enabled", result)
+    def test_explicit_environment_can_disable_affine_views(self):
+        result, progress = self.run_configuration({"UFNIA_AFFINE_VIEWS": "0"})
         self.assertFalse(result["affine_views_enabled"])
-        self.assertIn("affine_footprint_cache_enabled", result)
-        self.assertFalse(result["affine_footprint_cache_enabled"])
         self.assertEqual(result["affine_components"], 0)
+        self.assert_no_footprint_cache_fields(result)
         self.assertEqual(progress, [])
+
+    def test_removed_footprint_cache_flag_has_no_effect(self):
+        default, _ = self.run_configuration()
+        self.assert_no_footprint_cache_fields(default)
+        for value in ("0", "1"):
+            with self.subTest(value=value):
+                flagged, _ = self.run_configuration({"UFNIA_AFFINE_FOOTPRINT_CACHE": value})
+                self.assertEqual(flagged, default)
 
     def test_removed_point_flag_has_no_effect(self):
         default, _ = self.run_configuration()
         flagged, _ = self.run_configuration({"UFNIA_AFFINE_POINT_UNITS": "1"})
-        self.assertIn("affine_footprint_cache_enabled", default)
         self.assertEqual(flagged, default)
         self.assertFalse(any("point_units" in key for key in flagged))
 
-    def test_progress_reports_default_configuration_without_search(self):
+    def test_progress_reports_affine_configuration_without_search(self):
         result, progress = self.run_configuration({"UFNIA_AFFINE_PROGRESS": "1"}, parse=False)
-        self.assertIn("affine_progress_enabled", result)
         self.assertTrue(result["affine_progress_enabled"])
-        self.assertTrue(result["affine_footprint_cache_enabled"])
+        self.assertTrue(result["affine_views_enabled"])
+        self.assert_no_footprint_cache_fields(result)
         self.assertEqual(result["steps"], 0)
         self.assertEqual(result["status"], "unknown")
         self.assertEqual(len(progress), 1)
-        self.assertTrue(progress[0]["affine_footprint_cache_enabled"])
-        self.assertFalse(any("point_units" in key for key in progress[0]))
+        self.assertTrue(progress[0]["affine_views_enabled"])
+        self.assert_no_footprint_cache_fields(progress[0])
 
 
 if __name__ == "__main__":

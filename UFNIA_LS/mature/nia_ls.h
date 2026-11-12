@@ -1,8 +1,6 @@
 #pragma once
 #include <gmpxx.h>
 #include <optional>
-#include <array>
-#include <memory>
 #include <set>
 #include <unordered_map>
 #include <climits>
@@ -31,8 +29,6 @@
 namespace nia {
 using Int=mpz_class;
 using MoveScore=int64_t;
-struct AffineFootprint;
-using AffineFootprintHandle=std::shared_ptr<const AffineFootprint>;
 struct AffineTime {
  uint64_t* counter;std::chrono::steady_clock::time_point start;
  explicit AffineTime(uint64_t* value):counter(value){if(counter)start=std::chrono::steady_clock::now();}
@@ -138,28 +134,6 @@ public:
     };
     using UfPatch=std::map<size_t,Int>; // Absolute mature values; Bool=-1/+1.
     bool affine_enabled=true;
-    bool affine_footprint_cache_enabled=false;
-    mutable uint64_t affine_footprint_cache_hits=0,affine_footprint_cache_misses=0,affine_footprint_cache_fallbacks=0;
-    mutable uint64_t affine_footprint_cache_inserts=0,affine_footprint_cache_entries=0,affine_footprint_cache_bytes=0;
-    void clear_affine_footprint_cache();
-    std::string affine_footprint_cache_report()const;
-    uint64_t affine_footprint_cache_generation()const{return affine_footprint_structure_generation;}
-    const std::set<size_t>& affine_footprint_clauses(const AffineFootprintHandle& owner)const;
-    const std::set<size_t>& affine_footprint_literals(const AffineFootprintHandle& owner)const;
-private:
-    struct AffineFootprintEntry {
-      size_t view=0,multiplier=0;uint64_t generation=0;
-      std::vector<size_t> members;
-      AffineFootprintHandle owner;
-    };
-    mutable std::array<AffineFootprintEntry,64> affine_footprint_cache;
-    uint64_t affine_footprint_structure_generation=0;
-public:
-#ifdef NIA_AFFINE_FOOTPRINT_TEST_OBSERVER
-    struct AffineFootprintTestObserver {uint64_t builds=0,static_slots=0,numeric_calls=0,numeric_slots=0;};
-    mutable AffineFootprintTestObserver affine_footprint_test_observer;
-    mutable bool affine_footprint_test_fail_allocation=false;
-#endif
     bool affine_progress_enabled=false;std::string affine_progress_path;
     double affine_progress_last_seconds=0;uint64_t affine_progress_writes=0,affine_progress_errors=0;
     uint64_t affine_build_ns=0,affine_generate_ns=0,affine_score_ns=0,affine_candidate_ns=0,affine_commit_ns=0;
@@ -182,7 +156,7 @@ public:
     void prepare_affine_views();
     void initialize_affine_values();
     bool normalize_affine_patch(const UfPatch& requests,UfPatch& materialized,UfPatch* canonical=nullptr)const;
-    bool preflight_affine_patch(const UfPatch& materialized,AffineFootprintHandle* retained=nullptr)const;
+    bool preflight_affine_patch(const UfPatch& materialized)const;
     bool commit_affine_patch(const UfPatch& requests);
     bool verify_affine()const;
     void generate_affine_operations(bool use_tabu,int literal,int& count);

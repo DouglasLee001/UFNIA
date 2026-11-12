@@ -11,7 +11,6 @@ ls_solver::UfValue ls_solver::evaluate_uf_application(size_t id)const{
 void ls_solver::insert_uf_application(size_t id,const UfValue& value){auto& b=uf_buckets[value.key];uf_conflicts-=b.conflicts();b.members.insert(id);b.members_by_result[value.result].insert(id);b.change_frequency(value.result,1);uf_conflicts+=b.conflicts();if(b.conflicts())uf_conflicting_keys.insert(value.key);else uf_conflicting_keys.erase(value.key);}
 void ls_solver::remove_uf_application(size_t id,const UfValue& value){auto it=uf_buckets.find(value.key);if(it==uf_buckets.end())throw std::logic_error("missing UF bucket");auto& b=it->second;uf_conflicts-=b.conflicts();b.members.erase(id);auto result_members=b.members_by_result.find(value.result);if(result_members==b.members_by_result.end())throw std::logic_error("missing UF result class");result_members->second.erase(id);if(result_members->second.empty())b.members_by_result.erase(result_members);b.change_frequency(value.result,-1);uf_conflicts+=b.conflicts();if(b.conflicts())uf_conflicting_keys.insert(value.key);else uf_conflicting_keys.erase(value.key);if(b.members.empty())uf_buckets.erase(it);}
 void ls_solver::prepare_uf(){
- clear_affine_footprint_cache();
  variable_applications.assign(_num_vars,{});
  uf_variable_rows.assign(_num_vars,{});uf_linear_rows.clear();
  for(const auto& clause:_clauses){if(clause.literals.size()!=1||clause.literals[0]<=0)continue;const auto& l=_lits[clause.literals[0]];if(!l.is_nia_lit||!l.is_equal||l.coff_terms.size()<2||l.coff_terms.size()>16)continue;UfLinearRow row;row.key=l.key;row.literal=clause.literals[0];bool linear=true;for(const auto& ct:l.coff_terms){const auto& t=_terms[ct.term_idx];if(t.var_epxs.size()!=1||t.var_epxs[0].exponent!=1){linear=false;break;}row.terms.emplace_back(t.var_epxs[0].var_index,ct.coff);}if(!linear)continue;size_t id=uf_linear_rows.size();uf_linear_rows.push_back(std::move(row));for(const auto& [v,c]:uf_linear_rows.back().terms){(void)c;uf_variable_rows[v].push_back(id);}}
@@ -141,25 +140,24 @@ std::vector<ls_solver::UfCandidate> ls_solver::uf_candidates(){
 }
 MoveScore ls_solver::score_uf_patch(const UfPatch& requested,uint64_t* future_cnf,uint64_t* future_uf,MoveScore* uf_component,uint64_t* weighted_break){
  if(uf_component)*uf_component=0;if(weighted_break)*weighted_break=0;
- UfPatch expanded;AffineFootprintHandle retained;const bool view_trial=affine_patch_touches(requested);
+ UfPatch expanded;const bool view_trial=affine_patch_touches(requested);
  AffineTime timing(view_trial?&affine_score_ns:nullptr);if(view_trial)++affine_scores;
  if(view_trial){bool same=true;for(const auto& [v,x]:requested)if(x!=_solution[v]){same=false;break;}if(same){if(future_cnf)*future_cnf=unsat_clauses->size();if(future_uf)*future_uf=uf_conflicts;return 0;}}
- if(view_trial&&(!normalize_affine_patch(requested,expanded)||!preflight_affine_patch(expanded,&retained))){++affine_rejections;if(future_cnf)*future_cnf=unsat_clauses->size();if(future_uf)*future_uf=uf_conflicts;return INT64_MIN/4;}
+ if(view_trial&&(!normalize_affine_patch(requested,expanded)||!preflight_affine_patch(expanded))){++affine_rejections;if(future_cnf)*future_cnf=unsat_clauses->size();if(future_uf)*future_uf=uf_conflicts;return INT64_MIN/4;}
  const UfPatch& patch=view_trial?expanded:requested;
 
  ++uf_joint_evaluations;const MoveScore uf_score=uf_gain(patch,future_uf);if(uf_component)*uf_component=uf_score;MoveScore score=uf_score;uint64_t raw_cnf=unsat_clauses->size();UfPatch old;std::set<int> clauses;
- for(const auto& [v,value]:patch){old[v]=_solution[v];_solution[v]=value;if(!retained)clauses.insert(_vars[v].clause_idxs.begin(),_vars[v].clause_idxs.end());}
+ for(const auto& [v,value]:patch){old[v]=_solution[v];_solution[v]=value;clauses.insert(_vars[v].clause_idxs.begin(),_vars[v].clause_idxs.end());}
  auto restore=[&](){for(const auto& [v,value]:old)_solution[v]=value;};
  try{std::unordered_map<size_t,Int> values;
   std::set<size_t> changed_literals;std::map<size_t,bool> literal_truth;
-  const auto& direct_literals=retained?affine_footprint_literals(retained):changed_literals;
-  if(view_trial&&!retained)for(const auto& [v,x]:patch){(void)x;changed_literals.insert(_vars[v].literal_idxs.begin(),_vars[v].literal_idxs.end());}
+  if(view_trial)for(const auto& [v,x]:patch){(void)x;changed_literals.insert(_vars[v].literal_idxs.begin(),_vars[v].literal_idxs.end());}
   auto fresh_truth=[&](int li){const auto& l=_lits[std::abs(li)];bool yes;if(!l.is_nia_lit)yes=_solution[l.bool_var]>0;else{Int residual=l.key;for(const auto& ct:l.coff_terms){auto found=values.find(ct.term_idx);if(found==values.end()){Int value=1;for(const auto& ve:_terms[ct.term_idx].var_epxs)value*=integer_power(_solution[ve.var_index],ve.exponent);found=values.emplace(ct.term_idx,std::move(value)).first;}residual+=ct.coff*found->second;}yes=l.is_equal?residual==0:residual<=0;}return yes==(li>0);};
-  auto truth=[&](int li){size_t id=std::abs(li);if(!view_trial)return fresh_truth(li);if(!direct_literals.count(id))return (_lits[id].is_true>0)==(li>0);auto found=literal_truth.find(id);if(found==literal_truth.end())found=literal_truth.emplace(id,fresh_truth(int(id))).first;return found->second==(li>0);};
+  auto truth=[&](int li){size_t id=std::abs(li);if(!view_trial)return fresh_truth(li);if(!changed_literals.count(id))return (_lits[id].is_true>0)==(li>0);auto found=literal_truth.find(id);if(found==literal_truth.end())found=literal_truth.emplace(id,fresh_truth(int(id))).first;return found->second==(li>0);};
   auto score_clauses=[&](const auto& affected){
    for(int id:affected){const auto& c=_clauses[id];bool sat=false;for(int li:c.literals)if(truth(li)){sat=true;break;}if(c.sat_count==0&&sat){score+=c.weight;--raw_cnf;}else if(c.sat_count>0&&!sat){score-=c.weight;++raw_cnf;if(weighted_break)*weighted_break+=uint64_t(c.weight);}}
   };
-  if(retained)score_clauses(affine_footprint_clauses(retained));else score_clauses(clauses);
+  score_clauses(clauses);
 #if defined(NIA_SCORING_VERIFY) || defined(NIA_FAST_MOVE_VERIFY)
   MoveScore full_score=uf_score;uint64_t full_unsat=0;
   for(const auto& c:_clauses){bool sat=false;for(int li:c.literals)if(fresh_truth(li)){sat=true;break;}if(!sat)++full_unsat;if(c.sat_count==0&&sat)full_score+=c.weight;else if(c.sat_count>0&&!sat)full_score-=c.weight;}
