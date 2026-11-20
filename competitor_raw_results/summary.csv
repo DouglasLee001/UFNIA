@@ -1,0 +1,9 @@
+family,sat_benchmarks,yices2,cvc5,smtinterpol,z3
+201903-Zohar-alive,107,103,101,50,103
+201903-Zohar-ic,181,180,175,21,179
+20190906-CLEARSY,8,8,8,8,8
+20190909-CLEARSY,23,23,23,23,23
+20230314-Jaroslav-Bendik-Certora,62,45,20,18,34
+20240410-certora,191,131,53,32,51
+TwoSquares,0,0,0,0,0
+total,572,490,380,152,398
